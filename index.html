@@ -3,13 +3,15 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>条形码扫描器</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+
+    <title>Industrial Scanner</title>
 
     <script src="./assets/tailwindcss.js"></script>
     <script src="./assets/html5-qrcode.min.js"></script>
     <script src="./assets/vconsole.min.js"></script>
     <script>new window.VConsole()</script>
+
     <style>
         #reader {
             width: 100%;
@@ -20,54 +22,44 @@
             touch-action: none;
         }
 
-        #reader__dashboard_section_csr button,
-        #reader__dashboard_section_swaplink,
-        #reader img {
-            display: none !important;
-        }
-
-        .item-transition {
-            transition: all .3s ease;
-        }
-
         .no-scrollbar::-webkit-scrollbar {
-            display: none;
+            display: none
         }
 
         .no-scrollbar {
             -ms-overflow-style: none;
-            scrollbar-width: none;
+            scrollbar-width: none
         }
 
         @keyframes flash {
             0% {
-                background-color: rgba(59, 130, 246, .5)
+                background: rgba(59, 130, 246, .6)
             }
 
             100% {
-                background-color: transparent
+                background: transparent
             }
         }
 
-        .flash-effect {
-            animation: flash .4s ease-out;
+        .flash {
+            animation: flash .35s
         }
     </style>
 </head>
 
-<body class="bg-gray-100 h-screen flex flex-col font-sans antialiased text-slate-900">
+<body class="bg-gray-100 h-screen flex flex-col font-sans">
 
-    <header class="bg-white px-4 py-3 shadow-md z-30 flex justify-between items-center">
+    <header class="bg-white px-4 py-3 shadow flex justify-between items-center">
+
         <div>
-            <h1 class="text-xl font-black text-blue-600 tracking-tight">SCANNER <span
-                    class="text-slate-400 font-light">PRO</span></h1>
-            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Management System</p>
+            <h1 class="text-xl font-black text-blue-600">SCANNER PRO</h1>
+            <p class="text-xs text-gray-400">Industrial Edition</p>
         </div>
 
-        <button onclick="exportToCSV()"
-            class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg shadow-blue-200 active:scale-95 transition">
-            导出 CSV (<span id="countText">0</span>)
+        <button onclick="exportCSV()" class="bg-blue-600 text-white px-4 py-2 rounded text-sm font-bold">
+            导出 (<span id="count">0</span>)
         </button>
+
     </header>
 
     <section class="p-4 flex-shrink-0">
@@ -76,26 +68,17 @@
 
             <div id="reader"></div>
 
-            <div id="zoomVisual"
-                class="absolute top-4 right-4 bg-black/60 text-white text-[10px] px-2 py-1 rounded hidden">
-                Zoom: <span id="zoomVal">1.0</span>x
+            <div id="zoomUI" class="absolute top-3 right-3 bg-black/70 text-white text-xs px-2 py-1 rounded hidden">
+                Zoom <span id="zoomVal">1</span>x
             </div>
 
-            <div id="startOverlay"
-                class="absolute inset-0 bg-slate-900/90 rounded-[20px] flex flex-col items-center justify-center text-white z-20">
+            <div id="overlay" class="absolute inset-0 bg-black/80 flex items-center justify-center text-white">
 
-                <button onclick="initScanner()" class="bg-blue-500 p-4 rounded-full shadow-2xl animate-bounce">
+                <button onclick="startScanner()" class="bg-blue-500 p-5 rounded-full shadow-xl animate-bounce">
 
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor">
-
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-
-                    </svg>
+                    ▶
 
                 </button>
-
-                <p class="mt-4 font-bold text-sm">点击开启摄像头</p>
 
             </div>
 
@@ -103,14 +86,12 @@
 
         <div class="flex gap-2 mt-3">
 
-            <button onclick="toggleTorch()"
-                class="flex-1 bg-white py-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 active:bg-slate-50">
+            <button onclick="toggleTorch()" class="flex-1 bg-white py-2 rounded border text-sm">
                 🔦 补光灯
             </button>
 
-            <button onclick="clearAll()"
-                class="flex-1 bg-white py-2 rounded-xl border border-slate-200 text-sm font-bold text-red-500 active:bg-red-50">
-                🗑️ 清空全部
+            <button onclick="clearAll()" class="flex-1 bg-white py-2 rounded border text-sm text-red-500">
+                清空
             </button>
 
         </div>
@@ -119,85 +100,246 @@
 
     <main class="flex-1 overflow-y-auto px-4 pb-10 no-scrollbar">
 
-        <div class="flex justify-between items-center mb-3 px-1">
-
-            <h2 class="text-xs font-black text-slate-400 uppercase tracking-widest">扫描管理列表</h2>
-
-        </div>
-
-        <div id="manageList" class="space-y-3">
-
-            <div id="emptyTip"
-                class="text-center py-10 bg-white/50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 text-sm">
-                当前暂无记录
-            </div>
-
-        </div>
+        <div id="list" class="space-y-2"></div>
 
     </main>
 
-    <audio id="beepAudio" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"
-        preload="auto"></audio>
+    <audio id="beep" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
 
     <script>
 
-        let html5QrCode = null
-        let scanHistory = []
-        let isTorchOn = false
+        /* ---------------------- */
+        /* 全局状态 */
+        /* ---------------------- */
+
+        let scanner = null
+        let history = []
+        let lastScanTime = 0
+        let scanLock = false
+
         let currentZoom = 1
-        let initialPinchDist = 0
+        let pinchStart = 0
+        let torch = false
 
-        function getCameraTrack() {
+        const SCAN_DEBOUNCE = 300
+        const PAUSE_TIME = 200
 
-            const video = document.querySelector("#reader video")
+        /* ---------------------- */
+        /* 获取摄像头 track */
+        /* ---------------------- */
 
-            if (!video || !video.srcObject) return null
+        function getTrack() {
 
-            return video.srcObject.getVideoTracks()[0]
+            const v = document.querySelector("#reader video")
+            if (!v || !v.srcObject) return null
+
+            return v.srcObject.getVideoTracks()[0]
 
         }
 
-        async function initScanner() {
+        /* ---------------------- */
+        /* 启动扫描器 */
+        /* ---------------------- */
 
-            document.getElementById('startOverlay').style.display = 'none'
+        async function startScanner() {
 
-            html5QrCode = new Html5Qrcode("reader")
+            document.getElementById("overlay").style.display = "none"
 
-            await html5QrCode.start(
+            scanner = new Html5Qrcode("reader")
+
+            await scanner.start(
                 { facingMode: "environment" },
-                { fps: 20, qrbox: (w, h) => ({ width: w * .8, height: h * .4 }) },
-                (text) => onScanSuccess(text)
+                {
+                    fps: 30,
+                    qrbox: (w, h) => ({ width: w * .7, height: h * .35 }),
+                    aspectRatio: 1
+                },
+                onScan
             )
 
-            setupZoomGestures()
+            enableAutoFocus()
+            enableZoom()
 
         }
 
-        function onScanSuccess(decodedText) {
+        /* ---------------------- */
+        /* 自动对焦 */
+        /* ---------------------- */
 
-            if (scanHistory.some(i => i.code === decodedText)) return
+        async function enableAutoFocus() {
 
-            scanHistory.unshift({
+            const track = getTrack()
+            if (!track) return
+
+            const cap = track.getCapabilities()
+
+            if (cap.focusMode) {
+
+                try {
+                    await track.applyConstraints({
+                        advanced: [{ focusMode: "continuous" }]
+                    })
+                } catch (e) { }
+
+            }
+
+        }
+
+        /* ---------------------- */
+        /* 扫码处理 */
+        /* ---------------------- */
+
+        async function onScan(text) {
+
+            const now = Date.now()
+
+            if (now - lastScanTime < SCAN_DEBOUNCE) return
+
+            lastScanTime = now
+
+            if (historyHash[text]) return
+
+            historyHash[text] = 1
+
+            scanLock = true
+
+            scanner.pause(true)
+
+            addRecord(text)
+
+            feedback()
+
+            setTimeout(() => {
+                scanner.resume()
+                scanLock = false
+            }, PAUSE_TIME)
+
+        }
+
+        /* ---------------------- */
+        /* 去重 Hash */
+        /* ---------------------- */
+
+        const historyHash = {}
+
+        /* ---------------------- */
+        /* 新记录 */
+        /* ---------------------- */
+
+        function addRecord(code) {
+
+            const item = {
                 id: Date.now(),
-                code: decodedText,
+                code,
                 time: new Date().toLocaleTimeString()
+            }
+
+            history.unshift(item)
+
+            appendDOM(item)
+
+            updateCount()
+
+        }
+
+        /* ---------------------- */
+        /* 增量 DOM */
+        /* ---------------------- */
+
+        function appendDOM(item) {
+
+            const list = document.getElementById("list")
+
+            const el = document.createElement("div")
+
+            el.className = "bg-white p-3 rounded shadow flex justify-between"
+
+            el.innerHTML = `
+<div class="min-w-0">
+<p class="font-mono font-bold truncate">${item.code}</p>
+<p class="text-xs text-gray-400">${item.time}</p>
+</div>
+<button onclick="removeItem('${item.id}')" class="text-red-400">删</button>
+`
+
+            list.prepend(el)
+
+        }
+
+        /* ---------------------- */
+        /* 删除 */
+        /* ---------------------- */
+
+        function removeItem(id) {
+
+            history = history.filter(v => v.id != id)
+
+            location.reload()
+
+        }
+
+        /* ---------------------- */
+        /* 清空 */
+        /* ---------------------- */
+
+        function clearAll() {
+
+            history = []
+            Object.keys(historyHash).forEach(k => delete historyHash[k])
+
+            document.getElementById("list").innerHTML = ""
+
+            updateCount()
+
+        }
+
+        /* ---------------------- */
+        /* 更新计数 */
+        /* ---------------------- */
+
+        function updateCount() {
+
+            document.getElementById("count").innerText = history.length
+
+        }
+
+        /* ---------------------- */
+        /* Torch */
+        /* ---------------------- */
+
+        async function toggleTorch() {
+
+            const track = getTrack()
+            if (!track) return
+
+            const cap = track.getCapabilities()
+
+            if (!cap.torch) {
+                alert("设备不支持")
+                return
+            }
+
+            torch = !torch
+
+            await track.applyConstraints({
+                advanced: [{ torch }]
             })
 
-            feedbackEffect()
-
-            renderList()
-
         }
 
-        function setupZoomGestures() {
+        /* ---------------------- */
+        /* Zoom */
+        /* ---------------------- */
 
-            const container = document.getElementById('reader')
+        function enableZoom() {
 
-            container.addEventListener('touchstart', e => {
+            const container = document.getElementById("reader")
 
-                if (e.touches.length === 2) {
+            container.addEventListener("touchstart", e => {
 
-                    initialPinchDist = Math.hypot(
+                if (e.touches.length == 2) {
+
+                    pinchStart = Math.hypot(
                         e.touches[0].pageX - e.touches[1].pageX,
                         e.touches[0].pageY - e.touches[1].pageY)
 
@@ -205,114 +347,74 @@
 
             }, { passive: false })
 
-            container.addEventListener('touchmove', async e => {
+            container.addEventListener("touchmove", async e => {
 
-                if (e.touches.length !== 2) return
+                if (e.touches.length != 2) return
 
                 e.preventDefault()
 
-                const track = getCameraTrack()
-
+                const track = getTrack()
                 if (!track) return
 
                 const cap = track.getCapabilities()
-
                 if (!cap.zoom) return
 
                 const dist = Math.hypot(
                     e.touches[0].pageX - e.touches[1].pageX,
                     e.touches[0].pageY - e.touches[1].pageY)
 
-                const delta = (dist - initialPinchDist) / 200
+                let delta = (dist - pinchStart) / 200
 
                 let next = currentZoom + delta
 
                 next = Math.max(cap.zoom.min, Math.min(cap.zoom.max, next))
 
-                await track.applyConstraints({ advanced: [{ zoom: next }] })
+                await track.applyConstraints({
+                    advanced: [{ zoom: next }]
+                })
 
                 currentZoom = next
-                initialPinchDist = dist
+                pinchStart = dist
 
-                const zoomUI = document.getElementById('zoomVisual')
-
-                zoomUI.classList.remove('hidden')
-
-                document.getElementById('zoomVal').innerText = currentZoom.toFixed(1)
+                document.getElementById("zoomUI").classList.remove("hidden")
+                document.getElementById("zoomVal").innerText = currentZoom.toFixed(1)
 
             }, { passive: false })
 
         }
 
-        async function toggleTorch() {
+        /* ---------------------- */
+        /* 反馈 */
+        /* ---------------------- */
 
-            const track = getCameraTrack()
+        function feedback() {
 
-            if (!track) return alert("摄像头未启动")
+            const beep = document.getElementById("beep")
 
-            const cap = track.getCapabilities()
+            beep.play().catch(() => { })
 
-            if (!cap.torch) return alert("设备不支持补光灯")
+            if (navigator.vibrate)
+                navigator.vibrate(30)
 
-            isTorchOn = !isTorchOn
+            const r = document.getElementById("reader")
 
-            await track.applyConstraints({
-                advanced: [{ torch: isTorchOn }]
-            })
+            r.classList.add("flash")
 
-        }
-
-        function renderList() {
-
-            const list = document.getElementById('manageList')
-
-            document.getElementById('countText').innerText = scanHistory.length
-
-            if (!scanHistory.length) {
-
-                list.innerHTML = `<div id="emptyTip" class="text-center py-10 bg-white/50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 text-sm">当前暂无记录</div>`
-
-                return
-
-            }
-
-            list.innerHTML = scanHistory.map((item, i) => `
-
-<div class="bg-white p-4 rounded-2xl shadow-sm border flex items-center justify-between">
-
-<div class="flex-1 min-w-0">
-
-<p class="font-mono font-black truncate">${item.code}</p>
-
-<p class="text-[10px] text-slate-400">${item.time}</p>
-
-</div>
-
-<button onclick="removeItem(${i})" class="text-red-400">删除</button>
-
-</div>
-
-`).join('')
-
-            saveToLocal()
+            setTimeout(() => r.classList.remove("flash"), 300)
 
         }
 
-        function removeItem(i) {
+        /* ---------------------- */
+        /* CSV */
+        /* ---------------------- */
 
-            scanHistory.splice(i, 1)
+        function exportCSV() {
 
-            renderList()
-
-        }
-
-        function exportToCSV() {
-
-            if (!scanHistory.length) return alert("无数据")
+            if (!history.length) return alert("无数据")
 
             let csv = "\uFEFF序号,条码,时间\n"
 
-            scanHistory.forEach((v, i) => {
+            history.forEach((v, i) => {
                 csv += `${i + 1},"${v.code}","${v.time}"\n`
             })
 
@@ -322,55 +424,27 @@
 
             a.href = URL.createObjectURL(blob)
 
-            a.download = "scan_export.csv"
+            a.download = "scan_export_" + Date.now() + ".csv"
 
             a.click()
 
         }
 
-        function feedbackEffect() {
+        /* ---------------------- */
+        /* 页面隐藏自动暂停 */
+        /* ---------------------- */
 
-            document.getElementById('beepAudio').play().catch(() => { })
+        document.addEventListener("visibilitychange", () => {
 
-            if (navigator.vibrate) navigator.vibrate(50)
+            if (!scanner) return
 
-            const reader = document.getElementById('reader')
+            if (document.hidden)
+                scanner.pause()
 
-            reader.classList.add('flash-effect')
+            else
+                scanner.resume()
 
-            setTimeout(() => reader.classList.remove('flash-effect'), 400)
-
-        }
-
-        function clearAll() {
-
-            scanHistory = []
-
-            renderList()
-
-        }
-
-        function saveToLocal() {
-
-            localStorage.setItem('managed_scan_v1', JSON.stringify(scanHistory))
-
-        }
-
-        function loadFromLocal() {
-
-            const saved = localStorage.getItem('managed_scan_v1')
-
-            if (saved) {
-
-                scanHistory = JSON.parse(saved)
-
-                renderList()
-
-            }
-
-        }
-
-        window.addEventListener('load', loadFromLocal)
+        })
 
     </script>
 
