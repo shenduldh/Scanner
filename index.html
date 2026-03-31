@@ -4,9 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>条形码扫描器</title>
-    <script src="./assets/tailwindcss.js"></script>
-    <script src="./assets/html5-qrcode.min.js"></script>
+    <title>条形码扫描器 PRO</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         #reader {
             width: 100%;
@@ -14,8 +14,10 @@
             overflow: hidden;
             background: #000;
             border: 4px solid white;
+            position: relative;
         }
 
+        /* 隐藏库自带的冗余 UI */
         #reader__dashboard_section_csr button,
         #reader__dashboard_section_swaplink,
         #reader img {
@@ -23,32 +25,32 @@
         }
 
         .item-transition {
-            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        /* 隐藏滚动条但保留功能 */
-        .no-scrollbar::-webkit-scrollbar {
+        /* 隐藏滚动条 */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* 增强版扫描成功闪烁：使用伪元素实现全屏边缘闪烁 */
+        #flash-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 50;
             display: none;
+            box-shadow: inset 0 0 100px #3b82f6;
+            background-color: rgba(59, 130, 246, 0.2);
         }
 
-        .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
+        @keyframes scan-flash {
+            0% { opacity: 1; }
+            100% { opacity: 0; }
         }
 
-        /* 扫描成功闪烁动画 */
-        @keyframes flash {
-            0% {
-                background-color: rgba(59, 130, 246, 0.5);
-            }
-
-            100% {
-                background-color: transparent;
-            }
-        }
-
-        .flash-effect {
-            animation: flash 0.4s ease-out;
+        .animate-flash {
+            display: block !important;
+            animation: scan-flash 0.5s ease-out forwards;
         }
     </style>
 </head>
@@ -57,84 +59,86 @@
 
     <header class="bg-white px-4 py-3 shadow-md z-30 flex justify-between items-center">
         <div>
-            <h1 class="text-xl font-black text-blue-600 tracking-tight">SCANNER <span
-                    class="text-slate-400 font-light">PRO</span></h1>
-            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Management System</p>
+            <h1 class="text-xl font-black text-blue-600 tracking-tight">SCANNER <span class="text-slate-400 font-light">PRO</span></h1>
+            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Enterprise Edition</p>
         </div>
         <div class="flex gap-2">
             <button onclick="exportToCSV()"
                 class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg shadow-blue-200 active:scale-95 transition">
-                导出 CSV (<span id="countText">0</span>)
+                导出 (<span id="countText">0</span>)
             </button>
         </div>
     </header>
 
     <section class="p-4 flex-shrink-0">
         <div class="relative group">
-            <div id="reader"></div>
-            <div id="zoomVisual"
-                class="absolute top-4 right-4 bg-black/60 text-white text-[10px] px-2 py-1 rounded hidden">
-                Zoom: <span id="zoomVal">1.0</span>x
+            <div id="reader">
+                <div id="flash-overlay"></div>
             </div>
+            
+            <div id="zoomVisual"
+                class="absolute top-4 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-md text-white text-[10px] px-3 py-1 rounded-full hidden z-40">
+                🔍 缩放: <span id="zoomVal">1.0</span>x
+            </div>
+
             <div id="startOverlay"
                 class="absolute inset-0 bg-slate-900/90 rounded-[20px] flex flex-col items-center justify-center text-white z-20 transition-opacity">
-                <button onclick="initScanner()" class="bg-blue-500 p-4 rounded-full shadow-2xl animate-bounce">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                <button onclick="initScanner()" class="bg-blue-500 p-5 rounded-full shadow-2xl animate-pulse">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                 </button>
-                <p class="mt-4 font-bold text-sm">点击开启摄像头</p>
-                <p class="text-[10px] text-slate-400 mt-1 uppercase">支持双指缩放控制</p>
+                <p class="mt-4 font-bold">准备就绪</p>
+                <p class="text-[10px] text-slate-400 mt-1 uppercase tracking-widest">支持补光灯与双指缩放</p>
             </div>
         </div>
 
         <div class="flex gap-2 mt-3">
             <button onclick="toggleTorch()"
-                class="flex-1 bg-white py-2 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 active:bg-slate-50">
-                🔦 补光灯
+                class="flex-1 bg-white py-3 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 active:bg-slate-50 shadow-sm flex items-center justify-center gap-2">
+                <span id="torchIcon">🔦</span> 补光灯
             </button>
             <button onclick="clearAll()"
-                class="flex-1 bg-white py-2 rounded-xl border border-slate-200 text-sm font-bold text-red-500 active:bg-red-50">
-                🗑️ 清空全部
+                class="flex-1 bg-white py-3 rounded-xl border border-slate-200 text-sm font-bold text-red-500 active:bg-red-50 shadow-sm">
+                🗑️ 清空列表
             </button>
         </div>
     </section>
 
     <main class="flex-1 overflow-y-auto px-4 pb-10 no-scrollbar">
         <div class="flex justify-between items-center mb-3 px-1">
-            <h2 class="text-xs font-black text-slate-400 uppercase tracking-widest">扫描管理列表</h2>
-            <span class="text-[10px] text-slate-400 italic">支持手动调整顺序</span>
+            <h2 class="text-xs font-black text-slate-400 uppercase tracking-widest">实时扫描清单</h2>
         </div>
 
         <div id="manageList" class="space-y-3">
-            <div id="emptyTip"
-                class="text-center py-10 bg-white/50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 text-sm">
-                当前暂无记录
+            <div id="emptyTip" class="text-center py-10 bg-white/50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 text-sm">
+                等待扫描录入...
             </div>
         </div>
     </main>
 
-    <audio id="beepAudio" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"
-        preload="auto"></audio>
+    <audio id="beepAudio" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
 
     <script>
         let html5QrCode = null;
-        let scanHistory = []; // 核心管理数据
+        let scanHistory = [];
         let isTorchOn = false;
         let currentZoom = 1;
-        let initialPinchDist = 0;
+        let lastPinchDist = 0;
 
-        // 1. 初始化扫描器
+        // 1. 初始化
         async function initScanner() {
             document.getElementById('startOverlay').style.opacity = '0';
             setTimeout(() => document.getElementById('startOverlay').style.display = 'none', 300);
 
             html5QrCode = new Html5Qrcode("reader");
             const config = {
-                fps: 20,
-                qrbox: (w, h) => ({ width: w * 0.8, height: h * 0.4 }),
-                aspectRatio: 1.0
+                fps: 25,
+                qrbox: (w, h) => {
+                    const size = Math.min(w, h) * 0.7;
+                    return { width: size, height: size * 0.6 }; // 优化条码扫描框比例
+                }
             };
 
             try {
@@ -145,15 +149,14 @@
                 );
                 setupZoomGestures();
             } catch (err) {
-                alert("摄像头开启失败: " + err);
+                alert("摄像头启动失败，请检查权限设置");
                 document.getElementById('startOverlay').style.display = 'flex';
                 document.getElementById('startOverlay').style.opacity = '1';
             }
         }
 
-        // 2. 扫描成功处理 (去重逻辑)
+        // 2. 扫描成功
         function onScanSuccess(decodedText) {
-            // 检查管理界面是否已存在该条码
             const exists = scanHistory.some(item => item.code === decodedText);
             if (!exists) {
                 const newItem = {
@@ -161,20 +164,19 @@
                     code: decodedText,
                     time: new Date().toLocaleTimeString('zh-CN', { hour12: false })
                 };
-                scanHistory.unshift(newItem); // 新扫的默认置顶
-
+                scanHistory.unshift(newItem);
                 feedbackEffect();
                 renderList();
             }
         }
 
-        // 3. 手势缩放核心修复
+        // 3. 修复后的手势缩放
         function setupZoomGestures() {
             const container = document.getElementById('reader');
 
             container.addEventListener('touchstart', e => {
                 if (e.touches.length === 2) {
-                    initialPinchDist = Math.hypot(
+                    lastPinchDist = Math.hypot(
                         e.touches[0].pageX - e.touches[1].pageX,
                         e.touches[0].pageY - e.touches[1].pageY
                     );
@@ -194,140 +196,138 @@
                         e.touches[0].pageY - e.touches[1].pageY
                     );
 
-                    // 计算增量
-                    const delta = (dist - initialPinchDist) / 100;
-                    const min = capabilities.zoom.min || 1;
-                    const max = capabilities.zoom.max || 1;
+                    // 计算缩放倍率增量
+                    const zoomStep = (dist - lastPinchDist) / 100;
+                    const min = capabilities.zoom.min;
+                    const max = capabilities.zoom.max;
+                    const step = capabilities.zoom.step || 0.1;
 
-                    let nextZoom = Math.min(Math.max(currentZoom + delta, min), max);
+                    let nextZoom = Math.min(Math.max(currentZoom + zoomStep, min), max);
+                    
+                    if (Math.abs(nextZoom - currentZoom) >= step) {
+                        try {
+                            await track.applyConstraints({ advanced: [{ zoom: nextZoom }] });
+                            currentZoom = nextZoom;
+                            lastPinchDist = dist;
 
-                    try {
-                        await track.applyConstraints({ advanced: [{ zoom: nextZoom }] });
-                        currentZoom = nextZoom;
-                        initialPinchDist = dist;
-
-                        // 显示 UI 数值
-                        const zoomUI = document.getElementById('zoomVisual');
-                        zoomUI.classList.remove('hidden');
-                        document.getElementById('zoomVal').innerText = currentZoom.toFixed(1);
-                    } catch (err) { console.error(err); }
+                            const zoomUI = document.getElementById('zoomVisual');
+                            zoomUI.classList.remove('hidden');
+                            document.getElementById('zoomVal').innerText = currentZoom.toFixed(1);
+                            
+                            // 3秒后自动隐藏缩放提示
+                            clearTimeout(window.zoomTimer);
+                            window.zoomTimer = setTimeout(() => zoomUI.classList.add('hidden'), 2000);
+                        } catch (err) { console.warn("Zoom not supported", err); }
+                    }
                 }
             }, { passive: true });
         }
 
-        // 4. 管理功能：渲染列表
+        // 4. 修复后的补光灯
+        async function toggleTorch() {
+            try {
+                const track = html5QrCode.getRunningTrack();
+                if (!track) throw new Error("相机未启动");
+                
+                const capabilities = track.getCapabilities();
+                if (!capabilities.torch) {
+                    alert("当前设备或浏览器环境不支持补光灯");
+                    return;
+                }
+
+                isTorchOn = !isTorchOn;
+                await track.applyConstraints({
+                    advanced: [{ torch: isTorchOn }]
+                });
+                
+                document.getElementById('torchIcon').innerText = isTorchOn ? "🌟" : "🔦";
+            } catch (err) {
+                alert("补光灯切换失败: " + err.message);
+            }
+        }
+
+        // 5. 增强视觉反馈
+        function feedbackEffect() {
+            // 声音反馈
+            const audio = document.getElementById('beepAudio');
+            audio.currentTime = 0;
+            audio.play().catch(() => {});
+            
+            // 震动反馈
+            if (navigator.vibrate) navigator.vibrate(80);
+            
+            // 界面闪烁效果 - 作用于高层级 Overlay
+            const flash = document.getElementById('flash-overlay');
+            flash.classList.remove('animate-flash');
+            void flash.offsetWidth; // 触发回流重绘
+            flash.classList.add('animate-flash');
+        }
+
+        // 列表管理相关
         function renderList() {
             const listEl = document.getElementById('manageList');
             document.getElementById('countText').innerText = scanHistory.length;
 
             if (scanHistory.length === 0) {
-                listEl.innerHTML = `
-                    <div id="emptyTip" class="text-center py-10 bg-white/50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 text-sm">
-                        当前暂无记录
-                    </div>
-                `;
+                listEl.innerHTML = `<div id="emptyTip" class="text-center py-10 bg-white/50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 text-sm">等待扫描录入...</div>`;
                 return;
             }
 
             listEl.innerHTML = scanHistory.map((item, index) => `
                 <div class="item-transition bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-3">
                     <div class="flex flex-col gap-1">
-                        <button onclick="moveItem(${index}, -1)" class="p-1 text-slate-300 hover:text-blue-500 active:scale-125">
-                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"/></svg>
-                        </button>
-                        <button onclick="moveItem(${index}, 1)" class="p-1 text-slate-300 hover:text-blue-500 active:scale-125">
-                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
-                        </button>
+                        <button onclick="moveItem(${index}, -1)" class="p-1 text-slate-300 hover:text-blue-500"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z"/></svg></button>
+                        <button onclick="moveItem(${index}, 1)" class="p-1 text-slate-300 hover:text-blue-500"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg></button>
                     </div>
-                    
                     <div class="flex-1 min-w-0">
-                        <p class="text-slate-900 font-mono font-black truncate">${item.code}</p>
+                        <p class="text-slate-900 font-mono font-black truncate text-base">${item.code}</p>
                         <p class="text-[10px] text-slate-400 font-bold">${item.time}</p>
                     </div>
-
                     <button onclick="removeItem(${index})" class="p-2 text-slate-300 hover:text-red-500 transition">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                     </button>
                 </div>
             `).join('');
-
             saveToLocal();
         }
 
-        // 5. 管理功能：调整顺序
         function moveItem(index, direction) {
             const newIndex = index + direction;
             if (newIndex >= 0 && newIndex < scanHistory.length) {
-                const temp = scanHistory[index];
-                scanHistory[index] = scanHistory[newIndex];
-                scanHistory[newIndex] = temp;
+                [scanHistory[index], scanHistory[newIndex]] = [scanHistory[newIndex], scanHistory[index]];
                 renderList();
             }
         }
 
-        // 6. 管理功能：删除
         function removeItem(index) {
             scanHistory.splice(index, 1);
             renderList();
         }
 
-        // 7. 管理功能：导出 (按当前界面顺序)
-        function exportToCSV() {
-            if (scanHistory.length === 0) return alert("无可导出的数据");
-
-            // 构建内容：完全按照 scanHistory 数组的当前顺序
-            let csvContent = "\uFEFF序号,条码内容,扫描时间\n";
-            scanHistory.forEach((item, idx) => {
-                csvContent += `${idx + 1},"${item.code}","${item.time}"\n`;
-            });
-
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.href = url;
-            link.download = `BATCH_EXPORT_${new Date().getTime()}.csv`;
-            link.click();
-        }
-
-        // 补光灯切换
-        async function toggleTorch() {
-            const track = html5QrCode.getRunningTrack();
-            if (track && track.getCapabilities().torch) {
-                isTorchOn = !isTorchOn;
-                await track.applyConstraints({ advanced: [{ torch: isTorchOn }] });
-            } else {
-                alert("设备不支持或未启动摄像头");
-            }
-        }
-
-        // 清空全部
         function clearAll() {
-            if (confirm("确定要清空所有管理记录吗？")) {
+            if (confirm("确定要清空所有记录吗？")) {
                 scanHistory = [];
                 renderList();
             }
         }
 
-        // 视觉反馈
-        function feedbackEffect() {
-            document.getElementById('beepAudio').play().catch(() => { });
-            if (navigator.vibrate) navigator.vibrate(50);
-            const reader = document.getElementById('reader');
-            reader.classList.add('flash-effect');
-            setTimeout(() => reader.classList.remove('flash-effect'), 400);
+        function exportToCSV() {
+            if (scanHistory.length === 0) return alert("无可导出的数据");
+            let csvContent = "\uFEFF序号,条码内容,扫描时间\n";
+            scanHistory.forEach((item, idx) => {
+                csvContent += `${idx + 1},"${item.code}","${item.time}"\n`;
+            });
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `SCAN_DATA_${new Date().getTime()}.csv`;
+            link.click();
         }
 
-        // 持久化存储
-        function saveToLocal() {
-            localStorage.setItem('managed_scan_v1', JSON.stringify(scanHistory));
-        }
-
+        function saveToLocal() { localStorage.setItem('scanner_pro_db', JSON.stringify(scanHistory)); }
         function loadFromLocal() {
-            const saved = localStorage.getItem('managed_scan_v1');
-            if (saved) {
-                scanHistory = JSON.parse(saved);
-                renderList();
-            }
+            const saved = localStorage.getItem('scanner_pro_db');
+            if (saved) { scanHistory = JSON.parse(saved); renderList(); }
         }
 
         window.addEventListener('load', loadFromLocal);
