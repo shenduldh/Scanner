@@ -4,17 +4,16 @@
 <head>
 
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
 
     <title>Scanner Pro Industrial</title>
 
     <script src="./assets/tailwindcss.js"></script>
     <script src="./assets/html5-qrcode.min.js"></script>
-    <script src="./assets/vconsole.min.js"></script>
+    <script src="./assets/xlsx.full.min.js"></script>
 
-    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-
-    <script>new window.VConsole()</script>
+    <!-- <script src="./assets/vconsole.min.js"></script> -->
+    <!-- <script>new window.VConsole()</script> -->
 
     <style>
         #reader {
@@ -26,13 +25,12 @@
             touch-action: none
         }
 
-        .no-scrollbar::-webkit-scrollbar {
-            display: none
-        }
-
-        .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none
+        .snapshot {
+            width: 40px;
+            height: 40px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 1px solid #ddd
         }
 
         .flash {
@@ -48,14 +46,6 @@
                 background: transparent
             }
         }
-
-        .snapshot {
-            width: 40px;
-            height: 40px;
-            object-fit: cover;
-            border-radius: 6px;
-            border: 1px solid #ddd
-        }
     </style>
 
 </head>
@@ -66,28 +56,30 @@
 
         <div>
             <h1 class="text-xl font-black text-blue-600">SCANNER PRO</h1>
-            <p class="text-xs text-gray-400">Industrial Edition</p>
         </div>
 
-        <button onclick="exportXLSX()" class="bg-blue-600 text-white px-4 py-2 rounded text-sm font-bold">
-            导出 (<span id="count">0</span>)
-        </button>
+        <div class="flex gap-2">
+
+            <button onclick="configColumns()" class="bg-gray-200 px-3 py-2 rounded text-sm">
+                列名
+            </button>
+
+            <button onclick="exportXLSX()" class="bg-blue-600 text-white px-4 py-2 rounded text-sm">
+                导出 (<span id="count">0</span>)
+            </button>
+
+        </div>
 
     </header>
 
-    <section id="scannerSection" class="p-4 flex-shrink-0">
+    <section id="scannerSection" class="p-4">
 
         <div class="relative">
 
             <div id="reader"></div>
 
-            <div id="zoomUI" class="absolute top-3 right-3 bg-black/70 text-white text-xs px-2 py-1 rounded hidden">
-                Zoom <span id="zoomVal">1</span>x
-            </div>
-
             <div id="overlay" class="absolute inset-0 bg-black/80 flex items-center justify-center text-white">
-                <button onclick="startScanner()"
-                    class="bg-blue-500 p-5 rounded-full shadow-xl animate-bounce">▶</button>
+                <button onclick="startScanner()" class="bg-blue-500 p-5 rounded-full shadow-xl">▶</button>
             </div>
 
         </div>
@@ -106,22 +98,14 @@
 
     </section>
 
-    <div id="manageBar" class="hidden bg-white p-2 shadow text-center">
-        <button onclick="showScanner()" class="text-blue-600 font-bold">返回扫描</button>
-    </div>
-
-    <main id="listArea" class="flex-1 overflow-y-auto px-4 pb-10 no-scrollbar">
+    <main class="flex-1 overflow-y-auto px-4 pb-10">
 
         <div id="list" class="space-y-2"></div>
 
     </main>
 
-    <!-- 放大图片 -->
-
     <div id="preview" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center">
-
         <img id="previewImg" class="max-w-full max-h-full">
-
     </div>
 
     <audio id="beep" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
@@ -134,35 +118,34 @@
         let history = []
         let historyHash = {}
 
-        const COLUMN_NAMES = []
+        let columnNames = []
 
         const MAX_HISTORY = 1000
         const SCAN_DEBOUNCE = 300
         const PAUSE_TIME = 200
 
         let lastScan = 0
-
-        let currentZoom = 1
-        let pinchStart = 0
-
         let torch = false
 
         /* ---------- 本地存储 ---------- */
 
         function saveLocal() {
-            localStorage.setItem("scan_history_v3", JSON.stringify(history))
+
+            localStorage.setItem("scan_history_v4", JSON.stringify(history))
+
         }
 
         function loadLocal() {
 
             try {
 
-                const d = localStorage.getItem("scan_history_v3")
-                if (!d) return
-
-                history = JSON.parse(d)
+                const d = localStorage.getItem("scan_history_v4")
+                if (d) history = JSON.parse(d)
 
                 history.forEach(v => historyHash[v.code] = 1)
+
+                const c = localStorage.getItem("scan_columns_v1")
+                if (c) columnNames = JSON.parse(c)
 
                 renderAll()
 
@@ -175,7 +158,21 @@
 
         }
 
-        /* ---------- track ---------- */
+        /* ---------- 列名配置 ---------- */
+
+        function configColumns() {
+
+            const v = prompt("输入列名，用逗号分隔\n例：箱号,SKU,数量", columnNames.join(","))
+
+            if (v === null) return
+
+            columnNames = v.split(",").map(s => s.trim()).filter(Boolean)
+
+            localStorage.setItem("scan_columns_v1", JSON.stringify(columnNames))
+
+        }
+
+        /* ---------- 摄像头 ---------- */
 
         function getTrack() {
 
@@ -197,14 +194,9 @@
 
             await scanner.start(
                 { facingMode: "environment" },
-                {
-                    fps: 30,
-                    qrbox: (w, h) => ({ width: w * .7, height: h * .35 })
-                },
+                { fps: 30 },
                 onScan
             )
-
-            enableZoom()
 
         }
 
@@ -218,7 +210,7 @@
 
             const canvas = document.createElement("canvas")
 
-            const size = 160
+            const size = 128
 
             canvas.width = size
             canvas.height = size
@@ -245,26 +237,16 @@
 
             historyHash[text] = 1
 
-            if (scanner && !scannerPaused) {
-
-                scanner.pause(true)
-                scannerPaused = true
-
-            }
+            scanner.pause(true)
+            scannerPaused = true
 
             addRecord(text)
 
             feedback()
 
             setTimeout(() => {
-
-                if (scanner && scannerPaused) {
-
-                    scanner.resume()
-                    scannerPaused = false
-
-                }
-
+                scanner.resume()
+                scannerPaused = false
             }, PAUSE_TIME)
 
         }
@@ -286,7 +268,6 @@
             if (history.length > MAX_HISTORY) {
 
                 const r = history.pop()
-
                 delete historyHash[r.code]
 
             }
@@ -364,7 +345,7 @@
 
             const i = history.findIndex(v => v.id == id)
 
-            const ni = i + dir
+            const ni = i - dir
 
             if (ni < 0 || ni >= history.length) return
 
@@ -376,22 +357,6 @@
             saveLocal()
 
             renderAll()
-
-        }
-
-        /* ---------- 隐藏扫描 ---------- */
-
-        document.getElementById("listArea").addEventListener("click", () => {
-
-            document.getElementById("scannerSection").classList.add("hidden")
-            document.getElementById("manageBar").classList.remove("hidden")
-
-        })
-
-        function showScanner() {
-
-            document.getElementById("scannerSection").classList.remove("hidden")
-            document.getElementById("manageBar").classList.add("hidden")
 
         }
 
@@ -433,56 +398,47 @@
 
         }
 
-        /* ---------- Zoom ---------- */
+        /* ---------- 导出 XLSX ---------- */
 
-        function enableZoom() {
+        function exportXLSX() {
 
-            const container = document.getElementById("reader")
+            if (!history.length) return alert("无数据")
 
-            container.addEventListener("touchstart", e => {
+            let cols = columnNames.length ? columnNames : ["内容"]
 
-                if (e.touches.length == 2) {
+            cols = [...cols, "快照"]
 
-                    pinchStart = Math.hypot(
-                        e.touches[0].pageX - e.touches[1].pageX,
-                        e.touches[0].pageY - e.touches[1].pageY)
+            let rows = []
+            let row = []
+
+            history.forEach(item => {
+
+                row.push(item.code)
+
+                if (row.length === cols.length - 1) {
+
+                    rows.push([...row, item.snapshot])
+
+                    row = []
 
                 }
 
             })
 
-            container.addEventListener("touchmove", async e => {
+            if (row.length) {
 
-                if (e.touches.length != 2) return
+                while (row.length < cols.length - 1) row.push("")
+                rows.push([...row, ""])
 
-                const track = getTrack()
-                if (!track) return
+            }
 
-                const cap = track.getCapabilities()
+            const ws = XLSX.utils.aoa_to_sheet([cols, ...rows])
 
-                if (!cap.zoom) return
+            const wb = XLSX.utils.book_new()
 
-                const dist = Math.hypot(
-                    e.touches[0].pageX - e.touches[1].pageX,
-                    e.touches[0].pageY - e.touches[1].pageY)
+            XLSX.utils.book_append_sheet(wb, ws, "scan")
 
-                let delta = (dist - pinchStart) / 200
-
-                let next = currentZoom + delta
-
-                next = Math.max(cap.zoom.min, Math.min(cap.zoom.max, next))
-
-                await track.applyConstraints({
-                    advanced: [{ zoom: next }]
-                })
-
-                currentZoom = next
-                pinchStart = dist
-
-                document.getElementById("zoomUI").classList.remove("hidden")
-                document.getElementById("zoomVal").innerText = currentZoom.toFixed(1)
-
-            })
+            XLSX.writeFile(wb, "scan_export.xlsx")
 
         }
 
@@ -493,60 +449,6 @@
             document.getElementById("beep").play().catch(() => { })
 
             if (navigator.vibrate) navigator.vibrate(30)
-
-            const r = document.getElementById("reader")
-
-            r.classList.add("flash")
-
-            setTimeout(() => r.classList.remove("flash"), 300)
-
-        }
-
-        /* ---------- XLSX 导出 ---------- */
-
-        function exportXLSX() {
-
-            if (!history.length) return alert("无数据")
-
-            let columns = COLUMN_NAMES.length ? COLUMN_NAMES : ["内容"]
-
-            columns = [...columns, "快照"]
-
-            let data = []
-
-            let row = []
-
-            history.forEach((item, i) => {
-
-                row.push(item.code)
-
-                if (row.length === columns.length - 1) {
-
-                    row.push(item.snapshot)
-
-                    data.push(row)
-
-                    row = []
-
-                }
-
-            })
-
-            if (row.length) {
-
-                while (row.length < columns.length - 1) row.push("")
-                row.push("")
-                data.push(row)
-
-            }
-
-            const ws = XLSX.utils.aoa_to_sheet([columns, ...data])
-
-            const wb = XLSX.utils.book_new()
-
-            XLSX.utils.book_append_sheet(wb, ws, "scan")
-
-            XLSX.writeFile(wb, "scan_export.xlsx")
 
         }
 
@@ -559,7 +461,7 @@
             history = []
             historyHash = {}
 
-            localStorage.removeItem("scan_history_v3")
+            localStorage.removeItem("scan_history_v4")
 
             renderAll()
 
@@ -572,8 +474,6 @@
             document.getElementById("count").innerText = history.length
 
         }
-
-        /* ---------- init ---------- */
 
         window.onload = loadLocal
 
