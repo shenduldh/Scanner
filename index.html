@@ -5,11 +5,15 @@
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+
     <title>Scanner Pro Industrial</title>
 
     <script src="./assets/tailwindcss.js"></script>
     <script src="./assets/html5-qrcode.min.js"></script>
     <script src="./assets/vconsole.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
     <script>new window.VConsole()</script>
 
     <style>
@@ -44,6 +48,14 @@
                 background: transparent
             }
         }
+
+        .snapshot {
+            width: 40px;
+            height: 40px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 1px solid #ddd
+        }
     </style>
 
 </head>
@@ -51,17 +63,19 @@
 <body class="bg-gray-100 h-screen flex flex-col font-sans">
 
     <header class="bg-white px-4 py-3 shadow flex justify-between items-center">
+
         <div>
             <h1 class="text-xl font-black text-blue-600">SCANNER PRO</h1>
             <p class="text-xs text-gray-400">Industrial Edition</p>
         </div>
 
-        <button onclick="exportCSV()" class="bg-blue-600 text-white px-4 py-2 rounded text-sm font-bold">
+        <button onclick="exportXLSX()" class="bg-blue-600 text-white px-4 py-2 rounded text-sm font-bold">
             导出 (<span id="count">0</span>)
         </button>
+
     </header>
 
-    <section class="p-4 flex-shrink-0">
+    <section id="scannerSection" class="p-4 flex-shrink-0">
 
         <div class="relative">
 
@@ -92,11 +106,25 @@
 
     </section>
 
-    <main class="flex-1 overflow-y-auto px-4 pb-10 no-scrollbar">
+    <div id="manageBar" class="hidden bg-white p-2 shadow text-center">
+        <button onclick="showScanner()" class="text-blue-600 font-bold">返回扫描</button>
+    </div>
+
+    <main id="listArea" class="flex-1 overflow-y-auto px-4 pb-10 no-scrollbar">
+
         <div id="list" class="space-y-2"></div>
+
     </main>
 
-    <audio id="beep" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+    <!-- 放大图片 -->
+
+    <div id="preview" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center">
+
+        <img id="previewImg" class="max-w-full max-h-full">
+
+    </div>
+
+    <audio id="beep" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
 
     <script>
 
@@ -106,13 +134,7 @@
         let history = []
         let historyHash = {}
 
-        let focusTimer = null
-
-        let currentZoom = 1
-        let pinchStart = 0
-        let zoomLock = false
-
-        let torch = false
+        const COLUMN_NAMES = []
 
         const MAX_HISTORY = 1000
         const SCAN_DEBOUNCE = 300
@@ -120,23 +142,25 @@
 
         let lastScan = 0
 
+        let currentZoom = 1
+        let pinchStart = 0
+
+        let torch = false
+
         /* ---------- 本地存储 ---------- */
 
         function saveLocal() {
-            try {
-                localStorage.setItem("scan_history_v2", JSON.stringify(history))
-            } catch (e) { }
+            localStorage.setItem("scan_history_v3", JSON.stringify(history))
         }
 
         function loadLocal() {
 
             try {
 
-                const d = localStorage.getItem("scan_history_v2")
-
+                const d = localStorage.getItem("scan_history_v3")
                 if (!d) return
 
-                history = JSON.parse(d) || []
+                history = JSON.parse(d)
 
                 history.forEach(v => historyHash[v.code] = 1)
 
@@ -144,17 +168,14 @@
 
             } catch (e) {
 
-                console.warn("localStorage损坏已清空")
-
-                localStorage.removeItem("scan_history_v2")
-
                 history = []
                 historyHash = {}
+
             }
 
         }
 
-        /* ---------- 摄像头track ---------- */
+        /* ---------- track ---------- */
 
         function getTrack() {
 
@@ -166,7 +187,7 @@
 
         }
 
-        /* ---------- 启动扫描 ---------- */
+        /* ---------- 启动 ---------- */
 
         async function startScanner() {
 
@@ -184,40 +205,29 @@
             )
 
             enableZoom()
-            enableAutoFocus()
 
         }
 
-        /* ---------- 自动对焦 ---------- */
+        /* ---------- 快照 ---------- */
 
-        async function enableAutoFocus() {
+        function captureSnapshot() {
 
-            const track = getTrack()
-            if (!track) return
+            const video = document.querySelector("#reader video")
 
-            const cap = track.getCapabilities()
+            if (!video) return null
 
-            if (!cap.focusMode) return
+            const canvas = document.createElement("canvas")
 
-            if (cap.focusMode.includes("continuous")) {
+            const size = 160
 
-                await track.applyConstraints({
-                    advanced: [{ focusMode: "continuous" }]
-                })
+            canvas.width = size
+            canvas.height = size
 
-            } else if (cap.focusMode.includes("single-shot")) {
+            const ctx = canvas.getContext("2d")
 
-                clearInterval(focusTimer)
+            ctx.drawImage(video, 0, 0, size, size)
 
-                focusTimer = setInterval(() => {
-
-                    track.applyConstraints({
-                        advanced: [{ focusMode: "single-shot" }]
-                    })
-
-                }, 2000)
-
-            }
+            return canvas.toDataURL("image/jpeg", 0.6)
 
         }
 
@@ -263,19 +273,21 @@
 
         function addRecord(code) {
 
+            const snapshot = captureSnapshot()
+
             const item = {
                 id: Date.now(),
                 code,
-                time: new Date().toLocaleTimeString()
+                snapshot
             }
 
             history.unshift(item)
 
             if (history.length > MAX_HISTORY) {
 
-                const removed = history.pop()
+                const r = history.pop()
 
-                delete historyHash[removed.code]
+                delete historyHash[r.code]
 
             }
 
@@ -295,29 +307,28 @@
 
             const el = document.createElement("div")
 
-            el.className = "bg-white p-3 rounded shadow flex justify-between items-center"
+            el.className = "bg-white p-3 rounded shadow flex items-center gap-2"
 
             el.innerHTML = `
-<div class="flex-1 min-w-0">
-<p class="font-mono font-bold truncate">${item.code}</p>
-<p class="text-xs text-gray-400">${item.time}</p>
-</div>
 
-<div class="flex gap-2">
-
+<div class="flex flex-col">
 <button onclick="moveItem('${item.id}',-1)">⬆</button>
 <button onclick="moveItem('${item.id}',1)">⬇</button>
-
-<button onclick="removeItem('${item.id}')" class="text-red-400">删</button>
-
 </div>
+
+<img src="${item.snapshot}" class="snapshot" onclick="showPreview('${item.snapshot}')">
+
+<div class="flex-1 font-mono truncate">${item.code}</div>
+
+<button onclick="removeItem('${item.id}')" class="text-red-500">删</button>
+
 `
 
             list.prepend(el)
 
         }
 
-        /* ---------- 重绘 ---------- */
+        /* ---------- 渲染 ---------- */
 
         function renderAll() {
 
@@ -325,35 +336,7 @@
 
             list.innerHTML = ""
 
-            const frag = document.createDocumentFragment()
-
-            history.forEach(item => {
-
-                const el = document.createElement("div")
-
-                el.className = "bg-white p-3 rounded shadow flex justify-between items-center"
-
-                el.innerHTML = `
-<div class="flex-1 min-w-0">
-<p class="font-mono font-bold truncate">${item.code}</p>
-<p class="text-xs text-gray-400">${item.time}</p>
-</div>
-
-<div class="flex gap-2">
-
-<button onclick="moveItem('${item.id}',-1)">⬆</button>
-<button onclick="moveItem('${item.id}',1)">⬇</button>
-
-<button onclick="removeItem('${item.id}')" class="text-red-400">删</button>
-
-</div>
-`
-
-                frag.appendChild(el)
-
-            })
-
-            list.appendChild(frag)
+            history.forEach(prependDOM)
 
             updateCount()
 
@@ -364,8 +347,6 @@
         function removeItem(id) {
 
             const item = history.find(v => v.id == id)
-
-            if (!item) return
 
             history = history.filter(v => v.id != id)
 
@@ -390,7 +371,6 @@
             const t = history[i]
 
             history[i] = history[ni]
-
             history[ni] = t
 
             saveLocal()
@@ -399,26 +379,33 @@
 
         }
 
-        /* ---------- 清空 ---------- */
+        /* ---------- 隐藏扫描 ---------- */
 
-        function clearAll() {
+        document.getElementById("listArea").addEventListener("click", () => {
 
-            if (!confirm("确定清空?")) return
+            document.getElementById("scannerSection").classList.add("hidden")
+            document.getElementById("manageBar").classList.remove("hidden")
 
-            history = []
-            historyHash = {}
+        })
 
-            localStorage.removeItem("scan_history_v2")
+        function showScanner() {
 
-            renderAll()
+            document.getElementById("scannerSection").classList.remove("hidden")
+            document.getElementById("manageBar").classList.add("hidden")
 
         }
 
-        /* ---------- 计数 ---------- */
+        /* ---------- 快照预览 ---------- */
 
-        function updateCount() {
+        function showPreview(src) {
 
-            document.getElementById("count").innerText = history.length
+            const p = document.getElementById("preview")
+
+            document.getElementById("previewImg").src = src
+
+            p.classList.remove("hidden")
+
+            p.onclick = () => p.classList.add("hidden")
 
         }
 
@@ -434,7 +421,6 @@
             if (!cap.torch) {
 
                 alert("设备不支持")
-
                 return
 
             }
@@ -463,20 +449,17 @@
 
                 }
 
-            }, { passive: false })
+            })
 
             container.addEventListener("touchmove", async e => {
 
                 if (e.touches.length != 2) return
 
-                if (zoomLock) return
-
-                e.preventDefault()
-
                 const track = getTrack()
                 if (!track) return
 
                 const cap = track.getCapabilities()
+
                 if (!cap.zoom) return
 
                 const dist = Math.hypot(
@@ -489,8 +472,6 @@
 
                 next = Math.max(cap.zoom.min, Math.min(cap.zoom.max, next))
 
-                zoomLock = true
-
                 await track.applyConstraints({
                     advanced: [{ zoom: next }]
                 })
@@ -501,9 +482,7 @@
                 document.getElementById("zoomUI").classList.remove("hidden")
                 document.getElementById("zoomVal").innerText = currentZoom.toFixed(1)
 
-                setTimeout(() => zoomLock = false, 80)
-
-            }, { passive: false })
+            })
 
         }
 
@@ -523,35 +502,78 @@
 
         }
 
-        /* ---------- 导出 ---------- */
+        /* ---------- XLSX 导出 ---------- */
 
-        function exportCSV() {
+        function exportXLSX() {
 
             if (!history.length) return alert("无数据")
 
-            let csv = "\uFEFF序号,条码,时间\n"
+            let columns = COLUMN_NAMES.length ? COLUMN_NAMES : ["内容"]
 
-            history.forEach((v, i) => {
+            columns = [...columns, "快照"]
 
-                const code = v.code.replaceAll('"', '""')
+            let data = []
 
-                csv += `${i + 1},"${code}","${v.time}"\n`
+            let row = []
+
+            history.forEach((item, i) => {
+
+                row.push(item.code)
+
+                if (row.length === columns.length - 1) {
+
+                    row.push(item.snapshot)
+
+                    data.push(row)
+
+                    row = []
+
+                }
 
             })
 
-            const blob = new Blob([csv])
+            if (row.length) {
 
-            const a = document.createElement("a")
+                while (row.length < columns.length - 1) row.push("")
+                row.push("")
+                data.push(row)
 
-            a.href = URL.createObjectURL(blob)
+            }
 
-            a.download = "scan_export_" + Date.now() + ".csv"
+            const ws = XLSX.utils.aoa_to_sheet([columns, ...data])
 
-            a.click()
+            const wb = XLSX.utils.book_new()
+
+            XLSX.utils.book_append_sheet(wb, ws, "scan")
+
+            XLSX.writeFile(wb, "scan_export.xlsx")
 
         }
 
-        /* ---------- 初始化 ---------- */
+        /* ---------- 清空 ---------- */
+
+        function clearAll() {
+
+            if (!confirm("确定清空?")) return
+
+            history = []
+            historyHash = {}
+
+            localStorage.removeItem("scan_history_v3")
+
+            renderAll()
+
+        }
+
+        /* ---------- count ---------- */
+
+        function updateCount() {
+
+            document.getElementById("count").innerText = history.length
+
+        }
+
+        /* ---------- init ---------- */
 
         window.onload = loadLocal
 
