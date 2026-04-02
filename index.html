@@ -5,22 +5,46 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
     <title>扫描喵</title>
-
     <link rel="manifest" href="manifest.json">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#FFFFFF">
+    <link rel="icon" type="image/png" sizes="196x196" href="images/favicon-196.png">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="扫描喵">
-    <link rel="apple-touch-icon" href="icon-180.png">
-    <link rel="icon" href="icon-192.png">
-
+    <link rel="apple-touch-icon" href="images/apple-icon-180.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="apple-touch-startup-image" href="images/apple-splash-2048-2732.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="images/apple-splash-1668-2388.png" media="(device-width: 834px) and (device-height: 1194px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="images/apple-splash-1536-2048.png" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="images/apple-splash-1640-2360.png" media="(device-width: 820px) and (device-height: 1180px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="images/apple-splash-1668-2224.png" media="(device-width: 834px) and (device-height: 1112px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="images/apple-splash-1620-2160.png" media="(device-width: 810px) and (device-height: 1080px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="images/apple-splash-1488-2266.png" media="(device-width: 744px) and (device-height: 1133px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="images/apple-splash-1320-2868.png" media="(device-width: 440px) and (device-height: 956px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="images/apple-splash-1206-2622.png" media="(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="images/apple-splash-1260-2736.png" media="(device-width: 420px) and (device-height: 912px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="images/apple-splash-1290-2796.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="images/apple-splash-1179-2556.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="images/apple-splash-1170-2532.png" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="images/apple-splash-1284-2778.png" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="images/apple-splash-1125-2436.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="images/apple-splash-1242-2688.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="images/apple-splash-828-1792.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="images/apple-splash-1242-2208.png" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="images/apple-splash-750-1334.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+    <link rel="apple-touch-startup-image" href="images/apple-splash-640-1136.png" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
+  
     <script src="./assets/tailwindcss.js"></script>
     <script src="./assets/html5-qrcode.min.js"></script>
     <script src="./assets/exceljs.min.js"></script>
     <script src="./assets/vue.global.js"></script>
     <script src="./assets/Sortable.min.js"></script>
     <script src="./assets/vconsole.min.js"></script>
-    <script>new window.VConsole()</script>
-
+    
+    <script>
+        const vConsole = new window.VConsole({
+            onReady: () => document.querySelector("#__vconsole > div.vc-switch").remove()
+        })
+    </script>
     <style>
         body {
             padding-top: env(safe-area-inset-top);
@@ -33,9 +57,11 @@
 
 <body class="bg-gray-100 h-screen flex flex-col font-sans">
     <div id="app">
+
         <!-- 顶栏 -->
         <header class="bg-white px-4 py-3 shadow flex justify-between items-center">
-            <h1 class="text-2xl font-black text-indigo-600 font-bold">扫描喵🐱</h1>
+            <h1 onclick="vConsole.show()" class="text-2xl font-black text-indigo-600 font-bold cursor-pointer">扫描喵🐱
+            </h1>
             <div class="flex gap-2">
                 <button onclick="toggleTorch()" class="bg-white px-3 py-2 rounded border text-sm">🔦</button>
                 <button @click="showColumns=true" class="bg-gray-200 px-3 py-2 rounded text-sm">配置列名</button>
@@ -52,9 +78,9 @@
                 <button" @click="startScanner"
                     class="w-16 h-16 flex items-center text-white justify-center rounded-full border-2 border-white transition active:scale-95">
                     <svg class="w-8 h-8 ml-1" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M8 5v14l11-7z" />
+                        <path d="M8 5v14l11-7z"></path>
                     </svg>
-                    </button>
+                </button">
             </div>
         </section>
 
@@ -82,7 +108,8 @@
                     <button @click="remove(index)" class="text-red-400 ml-2 mr-2">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                            </path>
                         </svg>
                     </button>
                 </div>
@@ -99,12 +126,13 @@
                         <div class="handle cursor-move text-gray-300 text-xl px-4 py-2">⠿</div>
                         <input v-model="columns[i]"
                             class="w-20 p-1 bg-transparent outline-none text-sm focus:bg-blue-100 transition-colors"
-                            autofocus>
+                            autofocus="">
                         <button @click="columns.splice(i, 1)" class="ml-1 mr-2 text-red-400 disabled:invisible"
                             :disabled="columns.length === 1">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                                </path>
                             </svg>
                         </button>
                     </div>
@@ -115,31 +143,35 @@
                     class="ml-auto block w-32 bg-blue-600 text-white py-2.5 rounded-xl font-bold">完成</button>
             </div>
         </div>
-
     </div>
-
     <div id="preview" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center">
         <img id="previewImg" class="max-w-full max-h-full">
     </div>
-
     <script>
-        const SCANNER_CONFIG = { fps: 20, qrbox: (w, h) => ({ width: w * .75, height: h * .65 }), aspectRatio: 1 }
+        const SCANNER_CONFIG = {
+            fps: 20,
+            qrbox: (w, h) => ({
+                width: w * .75,
+                height: h * .65
+            }),
+            aspectRatio: 1
+        }
         const DB_NAME = "scannerDB"
         const TABLE_NAME = "records"
         const COLUMNS_STORAGE_KEY = "columns"
         const SNAPSHOT_SIZE = 256
         const SCAN_DEBOUNCE = 400
         const SCAN_PAUSED_MS = 300
-
         let db = null
-
         // 数据库
         function initDB() {
             return new Promise(res => {
                 const req = indexedDB.open(DB_NAME, 1)
                 req.onupgradeneeded = e => {
                     db = e.target.result
-                    db.createObjectStore(TABLE_NAME, { keyPath: "id" })
+                    db.createObjectStore(TABLE_NAME, {
+                        keyPath: "id"
+                    })
                 }
                 req.onsuccess = e => {
                     db = e.target.result
@@ -164,7 +196,6 @@
         function clearDB() {
             db.transaction(TABLE_NAME, "readwrite").objectStore(TABLE_NAME).clear()
         }
-
         // 扫描相关
         function getCameraTrack() {
             const video = document.querySelector("#reader video")
@@ -191,12 +222,10 @@
             if (!track) return
             const capabilities = track.getCapabilities()
             if (!capabilities.zoom) return
-
             let initDistance = 0
             let currentZoom = capabilities.zoom.min
             let minZoom = capabilities.zoom.min
             let maxZoom = capabilities.zoom.max
-
             const container = document.getElementById("reader")
             container.addEventListener("touchstart", e => {
                 if (e.touches.length === 2) {
@@ -204,7 +233,9 @@
                         e.touches[0].pageX - e.touches[1].pageX,
                         e.touches[0].pageY - e.touches[1].pageY)
                 }
-            }, { passive: false })
+            }, {
+                passive: false
+            })
             container.addEventListener("touchmove", async e => {
                 if (e.touches.length !== 2) return
                 e.preventDefault()
@@ -213,10 +244,16 @@
                     e.touches[0].pageY - e.touches[1].pageY)
                 const delta = (dist - initDistance) / 100
                 const nextZoom = Math.max(minZoom, Math.min(currentZoom + delta))
-                await track.applyConstraints({ advanced: [{ zoom: nextZoom }] })
+                await track.applyConstraints({
+                    advanced: [{
+                        zoom: nextZoom
+                    }]
+                })
                 currentZoom = nextZoom
                 initDistance = dist
-            }, { passive: false })
+            }, {
+                passive: false
+            })
         }
         async function toggleTorch() {
             const track = getCameraTrack()
@@ -224,11 +261,20 @@
             const capabilities = track.getCapabilities()
             if (!capabilities.torch) return
             const settings = track.getSettings()
-            await track.applyConstraints({ advanced: [{ torch: !settings.torch }] })
+            await track.applyConstraints({
+                advanced: [{
+                    torch: !settings.torch
+                }]
+            })
         }
-
-
-        const { createApp, ref, watch, computed, onMounted, nextTick } = Vue
+        const {
+            createApp,
+            ref,
+            watch,
+            computed,
+            onMounted,
+            nextTick
+        } = Vue
         createApp({
             setup() {
                 const data = ref([])
@@ -239,13 +285,14 @@
                 let scanner = null
                 let scanPaused = false
                 let lastScan = 0
-
                 // 启动扫描函数
                 async function startScanner() {
                     if (scanner) return
                     document.getElementById("overlay").classList.add("hidden")
                     scanner = new Html5Qrcode("reader")
-                    await scanner.start({ facingMode: "environment" }, SCANNER_CONFIG, onScanSuccess).then(setupPinchZoom)
+                    await scanner.start({
+                        facingMode: "environment"
+                    }, SCANNER_CONFIG, onScanSuccess).then(setupPinchZoom)
                 }
                 // 扫描成功回调函数
                 function onScanSuccess(text) {
@@ -270,11 +317,14 @@
                     await scanner.stop()
                     scanner = null
                 }
-
                 // 增加记录
                 function add(content) {
                     const snapshot = captureSnapshot()
-                    const item = { id: Date.now(), content, snapshot }
+                    const item = {
+                        id: Date.now(),
+                        content,
+                        snapshot
+                    }
                     data.value.unshift(item)
                     dataHash[content] = 1
                     addDBItem(item)
@@ -309,7 +359,6 @@
                     p.classList.remove("hidden")
                     p.onclick = () => p.classList.add("hidden")
                 }
-
                 onMounted(async () => {
                     // 记录拖动排序
                     Sortable.create(document.getElementById("dataList"), {
@@ -321,28 +370,33 @@
                             const item = temp.splice(e.oldIndex, 1)[0]
                             temp.splice(e.newIndex, 0, item)
                             data.value = []
-                            nextTick(() => { data.value = temp })
+                            nextTick(() => {
+                                data.value = temp
+                            })
                         }
                     })
-
                     // 初始化并加载数据库
                     await initDB()
                     let res = await loadDB()
                     data.value = res
                     res.forEach(v => dataHash[v.content] = 1)
-
                     // 加载列名
                     res = localStorage.getItem(COLUMNS_STORAGE_KEY)
                     if (res) columns.value = JSON.parse(res)
                 })
-
                 // 全屏管理记录和页面不可见时停止扫描
-                document.onvisibilitychange = async () => { if (document.hidden) await stopScanner() }
-                watch(fullscreen, async newVal => { if (newVal) await stopScanner() })
-
+                document.onvisibilitychange = async () => {
+                    if (document.hidden) await stopScanner()
+                }
+                watch(fullscreen, async newVal => {
+                    if (newVal) await stopScanner()
+                })
                 // 持久化列名
-                watch(columns, (newVal) => { localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify(newVal)) }, { deep: true })
-
+                watch(columns, (newVal) => {
+                    localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify(newVal))
+                }, {
+                    deep: true
+                })
                 // 列名拖动排序
                 watch(showColumns, async newVal => {
                     if (newVal) {
@@ -358,39 +412,49 @@
                                 const item = temp.splice(e.oldIndex, 1)[0]
                                 temp.splice(e.newIndex, 0, item)
                                 columns.value = []
-                                nextTick(() => { columns.value = temp })
+                                nextTick(() => {
+                                    columns.value = temp
+                                })
                             }
                         })
                     } else document.body.style.overflow = ""
                 })
-
                 // 导出 xlsx
                 async function exportXLSX() {
                     if (!data.value.length) return alert("无数据")
-
                     const workbook = new ExcelJS.Workbook()
                     const worksheet = workbook.addWorksheet("扫描记录")
-
                     const headers = ["序号", ...columns.value]
-                    worksheet.columns = headers.map(h => ({ header: h, key: h, width: 15 }));
-                    worksheet.getRow(1).font = { bold: true }
-
+                    worksheet.columns = headers.map(h => ({
+                        header: h,
+                        key: h,
+                        width: 15
+                    }));
+                    worksheet.getRow(1).font = {
+                        bold: true
+                    }
                     let rowIndex = 1
                     for (let i = 0; i < data.value.length; i += columns.value.length)
                         worksheet.addRow([rowIndex++, ...data.value.slice(i, i + columns.value.length).map(i => i.content)])
-
                     worksheet.columns.forEach((column, index) => {
                         let maxLength = 10
-                        column.eachCell({ includeEmpty: true }, (cell) => {
-                            if (index === 0) cell.alignment = { vertical: "middle", horizontal: "center" }
-                            else cell.alignment = { vertical: "middle", horizontal: "left" }
+                        column.eachCell({
+                            includeEmpty: true
+                        }, (cell) => {
+                            if (index === 0) cell.alignment = {
+                                vertical: "middle",
+                                horizontal: "center"
+                            }
+                            else cell.alignment = {
+                                vertical: "middle",
+                                horizontal: "left"
+                            }
                             const cellValue = cell.value ? cell.value.toString() : ""
                             const currLength = cellValue.split("").reduce((acc, c) => acc + (c.charCodeAt(0) > 255 ? 2 : 1), 0)
                             if (currLength > maxLength) maxLength = currLength
                         })
                         column.width = maxLength + 2
                     })
-
                     const buffer = await workbook.xlsx.writeBuffer()
                     const blob = new Blob([buffer])
                     const a = document.createElement("a")
@@ -398,12 +462,22 @@
                     a.download = `扫描记录_${Date.now()}.xlsx`
                     a.click()
                 }
-
-                return { data, startScanner, stopScanner, move, remove, clearAll, showPreview, fullscreen, showColumns, columns, exportXLSX }
+                return {
+                    data,
+                    startScanner,
+                    stopScanner,
+                    move,
+                    remove,
+                    clearAll,
+                    showPreview,
+                    fullscreen,
+                    showColumns,
+                    columns,
+                    exportXLSX
+                }
             }
         }).mount("#app")
     </script>
-
     <script>
         if ("serviceWorker" in navigator)
             window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js"))
