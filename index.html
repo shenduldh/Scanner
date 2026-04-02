@@ -3,31 +3,40 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
-    <title>扫描管理器</title>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no,viewport-fit=cover">
+    <title>扫描喵</title>
 
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="扫描管理器">
-    <link rel="apple-touch-icon" href="icon-192.png">
+    <meta name="apple-mobile-web-app-title" content="扫描喵">
+    <link rel="apple-touch-icon" href="icon-180.png">
+    <link rel="icon" href="icon-192.png">
 
     <script src="./assets/tailwindcss.js"></script>
     <script src="./assets/html5-qrcode.min.js"></script>
     <script src="./assets/exceljs.min.js"></script>
     <script src="./assets/vue.global.js"></script>
     <script src="./assets/Sortable.min.js"></script>
-    <script src="./assets/vconsole.min.js"></script>
-    <script>new window.VConsole()</script>
+    <!-- <script src="./assets/vconsole.min.js"></script>
+    <script>new window.VConsole()</script> -->
+
+    <style>
+        body {
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
+        }
+    </style>
 </head>
 
 <body class="bg-gray-100 h-screen flex flex-col font-sans">
     <div id="app">
         <!-- 顶栏 -->
         <header class="bg-white px-4 py-3 shadow flex justify-between items-center">
-            <h1 class="text-xl font-black text-blue-600">扫描管理器</h1>
+            <h1 class="text-2xl font-black text-indigo-600 font-bold">扫描喵🐱</h1>
             <div class="flex gap-2">
-                <button onclick="update()" class="bg-white px-3 py-2 rounded border text-sm">更新应用</button>
                 <button onclick="toggleTorch()" class="bg-white px-3 py-2 rounded border text-sm">🔦</button>
                 <button @click="showColumns=true" class="bg-gray-200 px-3 py-2 rounded text-sm">配置列名</button>
                 <button @click="exportXLSX" class="bg-blue-600 text-white px-4 py-2 rounded text-sm">
@@ -396,17 +405,6 @@
     </script>
 
     <script>
-        async function update() {
-            if (!navigator.onLine) return
-            try {
-                if ("caches" in window) {
-                    const cacheNames = await caches.keys()
-                    await Promise.all(cacheNames.map(name => caches.delete(name)))
-                }
-                window.location.reload(true)
-            } catch (error) { }
-        }
-
         if ("serviceWorker" in navigator)
             window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js"))
     </script>

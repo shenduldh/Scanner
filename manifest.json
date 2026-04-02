@@ -1,11 +1,16 @@
 {
-    "name": "扫描管理器",
-    "short_name": "Scanner",
+    "name": "扫描喵",
+    "short_name": "扫描喵",
     "start_url": "./index.html",
     "display": "standalone",
-    "background_color": "#ffffff",
-    "theme_color": "#317EFB",
+    "background_color": "#FFFFFF",
+    "theme_color": "#FFFFFF",
     "icons": [
+        {
+            "src": "icon-128.png",
+            "sizes": "128x128",
+            "type": "image/png"
+        },
         {
             "src": "icon-192.png",
             "sizes": "192x192",
