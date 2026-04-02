@@ -2,66 +2,18 @@
 <html lang="zh-CN">
 
 <head>
-
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-
-    <title>Scanner Pro Industrial</title>
-
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+    <title>扫描管理器</title>
     <script src="./assets/tailwindcss.js"></script>
     <script src="./assets/html5-qrcode.min.js"></script>
     <script src="./assets/exceljs.min.js"></script>
+    <script src="./assets/vue.global.js"></script>
+    <script src="./assets/Sortable.min.js"></script>
+    <script src="./assets/vconsole.min.js"></script>
+    <script>new window.VConsole()</script>
 
     <style>
-        #reader {
-            width: 100%;
-            aspect-ratio: 1/1;
-            border-radius: 20px;
-            overflow: hidden;
-            background: #000;
-            border: 4px solid white;
-            position: relative
-        }
-
-        .scan-frame {
-            position: absolute;
-            inset: 0;
-            border: 3px solid rgba(0, 255, 100, .8);
-            pointer-events: none
-        }
-
-        .scan-line {
-            position: absolute;
-            width: 100%;
-            height: 3px;
-            background: #00ff88;
-            animation: scan 2s linear infinite
-        }
-
-        @keyframes scan {
-            0% {
-                top: 0
-            }
-
-            100% {
-                top: 100%
-            }
-        }
-
-        .scan-success {
-            animation: flash .3s
-        }
-
-        @keyframes flash {
-            0% {
-                background: rgba(0, 255, 0, .5)
-            }
-
-            100% {
-                background: transparent
-            }
-        }
-
         .snapshot {
             width: 40px;
             height: 40px;
@@ -70,636 +22,333 @@
             border: 1px solid #ddd
         }
     </style>
-
 </head>
 
 <body class="bg-gray-100 h-screen flex flex-col font-sans">
-
-    <header class="bg-white px-4 py-3 shadow flex justify-between items-center">
-
-        <h1 class="text-xl font-black text-blue-600">SCANNER PRO</h1>
-
-        <div class="flex gap-2">
-
-            <button onclick="toggleManager()" class="bg-gray-200 px-3 py-2 rounded text-sm">
-                管理记录
-            </button>
-
-            <button onclick="configColumns()" class="bg-gray-200 px-3 py-2 rounded text-sm">
-                列名
-            </button>
-
-            <button onclick="exportXLSX()" class="bg-blue-600 text-white px-4 py-2 rounded text-sm">
-                导出 (<span id="count">0</span>)
-            </button>
-
-        </div>
-
-    </header>
-
-    <section id="scannerSection" class="p-4">
-
-        <div class="relative">
-
-            <div id="reader">
-
-                <div class="scan-frame"></div>
-                <div class="scan-line"></div>
-
+    <div id="app">
+        <header class="bg-white px-4 py-3 shadow flex justify-between items-center">
+            <h1 class="text-xl font-black text-blue-600">扫描管理器</h1>
+            <div class="flex gap-2">
+                <button onclick="toggleTorch()" class="bg-white px-3 py-2 rounded border text-sm">🔦</button>
+                <button @click="showColumns=true" class="bg-gray-200 px-3 py-2 rounded text-sm">配置列名</button>
+                <button @click="exportXLSX" class="bg-blue-600 text-white px-4 py-2 rounded text-sm">
+                    导出（<span id="count">{{data.length}}</span>）
+                </button>
             </div>
+        </header>
 
-            <div id="overlay" class="absolute inset-0 bg-black/80 flex items-center justify-center text-white">
-                <button onclick="startScanner()" class="bg-blue-500 p-5 rounded-full shadow-xl">▶</button>
+        <section id="scannerSection" class="relative w-full aspect-square border-2 border-white">
+            <div id="reader"></div>
+            <div id="overlay" class="absolute inset-0 bg-black flex items-center justify-center">
+                <button" @click="startScanner"
+                    class="w-16 h-16 flex items-center text-white justify-center rounded-full border-2 border-white transition active:scale-95">
+                    <svg class="w-8 h-8 ml-1" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M8 5v14l11-7z" />
+                    </svg>
+                    </button>
             </div>
+        </section>
 
-        </div>
-
-        <div class="flex gap-2 mt-3">
-
-            <button onclick="toggleTorch()" class="flex-1 bg-white py-2 rounded border text-sm">
-                🔦 补光灯
-            </button>
-
-            <button onclick="clearAll()" class="flex-1 bg-white py-2 rounded border text-sm text-red-500">
+        <section id="managerSection" class="flex-1 overflow-y-auto px-4 pb-10">
+            <button @click="clearAll" class="bg-white px-3 py-2 rounded border text-sm text-red-500">
                 清空
             </button>
+            <div id="list" class="space-y-3">
+                <div v-for="(item, index) in data" :key="item.id"
+                    class="flex items-center bg-white border border-slate-100 p-3 rounded-2xl shadow-sm">
+                    <div class="handle p-2 text-slate-300">☰</div>
+                    <div class="flex flex-col gap-1 mr-3">
+                        <button @click="move(index, -1)"
+                            class="text-[10px] text-slate-400 hover:text-blue-500 disabled:invisible"
+                            :disabled="index === 0">▲</button>
+                        <button @click="move(index, 1)"
+                            class="text-[10px] text-slate-400 hover:text-blue-500 disabled:invisible"
+                            :disabled="index === data.length - 1">▼</button>
+                    </div>
+                    <div class="flex-1 font-medium text-slate-700 truncate px-2">{{ item.content }}</div>
+                    <img :src="item.snapshot" class="snapshot" @click="showPreview(item.snapshot)">
+                    <button @click="remove(index)" class="p-2 text-red-400">✕</button>
+                </div>
+            </div>
+        </section>
 
+        <div v-if="showColumns" @click.self="showColumns=false" class="fixed inset-0 bg-black/40 flex items-end z-50">
+            <div class="bg-white w-full rounded-t-3xl p-6 transition-transform shadow-2xl">
+                <div class="flex flex-wrap gap-4 mb-6">
+                    <div v-for="(val, i) in columnNames" :key="i" class="relative">
+                        <input v-model="columnNames[i]"
+                            class="w-20 bg-gray-100 rounded px-1 py-1 outline-none focus:bg-blue-100 transition-colors"
+                            autofocus>
+                        <button @click="columnNames.splice(i, 1)"
+                            class="absolute -right-1.5 -bottom-1.5 bg-red-500 text-white w-3.5 h-3.5 rounded-full text-[8px] flex items-center justify-center shadow-sm">✕</button>
+                    </div>
+                    <button @click="columnNames.push('')"
+                        class="w-20 border-2 border-dashed rounded py-1 text-gray-400 text-sm">+</button>
+                </div>
+                <button @click="showColumns=false"
+                    class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold">完成</button>
+            </div>
         </div>
 
-    </section>
 
-    <main id="managerSection" class="hidden flex-1 overflow-y-auto px-4 pb-10">
+    </div>
 
-        <div id="list" class="space-y-2"></div>
 
-    </main>
 
     <div id="preview" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center">
         <img id="previewImg" class="max-w-full max-h-full">
     </div>
 
-    <audio id="beep" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
-
     <script>
-
-        let scanner = null
-        let scannerPaused = false
-
-        let history = []
-        let historyHash = {}
-
-        let columnNames = []
+        const SCANNER_CONFIG = { fps: 20, qrbox: (w, h) => ({ width: w * .5, height: h * .5 }), aspectRatio: 1 }
+        const DB_NAME = "scannerDB"
+        const TABLE_NAME = "records"
+        const COLUMNS_STORAGE_KEY = "columns"
+        const SNAPSHOT_SIZE = 256
+        const SCAN_DEBOUNCE = 400
+        const SCAN_PAUSED_MS = 300
 
         let db = null
 
-        const SNAP_SIZE = 512
-        const SCAN_DEBOUNCE = 300
-        const PAUSE_TIME = 200
-
-        let lastScan = 0
-        let torch = false
-
-        let zoom = 1
-        let maxZoom = 1
-
-        /* IndexedDB */
-
+        // 数据库
         function initDB() {
-
             return new Promise(res => {
-
-                const req = indexedDB.open("scannerDB", 1)
-
+                const req = indexedDB.open(DB_NAME, 1)
                 req.onupgradeneeded = e => {
                     db = e.target.result
-                    db.createObjectStore("records", { keyPath: "id" })
+                    db.createObjectStore(TABLE_NAME, { keyPath: "id" })
                 }
-
                 req.onsuccess = e => {
                     db = e.target.result
                     res()
                 }
-
             })
-
         }
-
-        function saveItem(item) {
-
-            db.transaction("records", "readwrite")
-                .objectStore("records")
-                .put(item)
-
-        }
-
-        function deleteItemDB(id) {
-
-            db.transaction("records", "readwrite")
-                .objectStore("records")
-                .delete(id)
-
-        }
-
-        function clearDB() {
-
-            db.transaction("records", "readwrite")
-                .objectStore("records")
-                .clear()
-
-        }
-
         function loadDB() {
-
             return new Promise(res => {
-
-                const req = db.transaction("records", "readonly")
-                    .objectStore("records")
-                    .getAll()
-
+                const req = db.transaction(TABLE_NAME, "readonly").objectStore(TABLE_NAME).getAll()
                 req.onsuccess = () => {
-
-                    history = req.result.sort((a, b) => b.id - a.id)
-
-                    history.forEach(v => historyHash[v.code] = 1)
-
-                    renderAll()
-
-                    res()
-
+                    res(req.result.sort((a, b) => b.id - a.id))
                 }
-
             })
-
+        }
+        function addDBItem(item) {
+            db.transaction(TABLE_NAME, "readwrite").objectStore(TABLE_NAME).put(item)
+        }
+        function removeDBItem(id) {
+            db.transaction(TABLE_NAME, "readwrite").objectStore(TABLE_NAME).delete(id)
+        }
+        function clearDB() {
+            db.transaction(TABLE_NAME, "readwrite").objectStore(TABLE_NAME).clear()
         }
 
-        /* UI切换 */
-
-        function toggleManager() {
-
-            const scannerUI = document.getElementById("scannerSection")
-            const managerUI = document.getElementById("managerSection")
-
-            if (managerUI.classList.contains("hidden")) {
-
-                managerUI.classList.remove("hidden")
-                scannerUI.classList.add("hidden")
-
-                stopScanner()
-
-            } else {
-
-                managerUI.classList.add("hidden")
-                scannerUI.classList.remove("hidden")
-
-                startScanner()
-
-            }
-
-        }
-
-        /* 摄像头 */
-
-        function getTrack() {
-
-            const v = document.querySelector("#reader video")
-
-            if (!v || !v.srcObject) return null
-
-            return v.srcObject.getVideoTracks()[0]
-
-        }
-
-        /* 启动扫描 */
-
-        async function startScanner() {
-
-            if (scanner) return
-
-            document.getElementById("overlay").style.display = "none"
-
-            scanner = new Html5Qrcode("reader")
-
-            await scanner.start(
-                { facingMode: "environment" },
-                { fps: 30 },
-                onScan
-            )
-
-            initZoom()
-
-        }
-
-        /* 停止扫描 */
-
-        async function stopScanner() {
-
-            if (!scanner) return
-
-            await scanner.stop()
-
-            scanner = null
-
-        }
-
-        /* 变焦 */
-
-        function initZoom() {
-
-            const track = getTrack()
-
-            if (!track) return
-
-            const cap = track.getCapabilities()
-
-            if (cap.zoom) {
-
-                maxZoom = cap.zoom.max
-
-                const reader = document.getElementById("reader")
-
-                let startDist = 0
-
-                reader.addEventListener("touchstart", e => {
-
-                    if (e.touches.length === 2) {
-
-                        startDist = getDist(e)
-
-                    }
-
-                })
-
-                reader.addEventListener("touchmove", e => {
-
-                    if (e.touches.length === 2) {
-
-                        const dist = getDist(e)
-
-                        const delta = dist - startDist
-
-                        zoom += delta * 0.01
-
-                        zoom = Math.max(1, Math.min(maxZoom, zoom))
-
-                        track.applyConstraints({ advanced: [{ zoom }] })
-
-                        startDist = dist
-
-                    }
-
-                })
-
-            }
-
-        }
-
-        function getDist(e) {
-
-            const dx = e.touches[0].clientX - e.touches[1].clientX
-            const dy = e.touches[0].clientY - e.touches[1].clientY
-
-            return Math.sqrt(dx * dx + dy * dy)
-
-        }
-
-        /* 快照 */
-
-        function captureSnapshot() {
-
+        // 扫描相关
+        function getCameraTrack() {
             const video = document.querySelector("#reader video")
-
+            if (!video || !video.srcObject) return null
+            return video.srcObject.getVideoTracks()[0]
+        }
+        function captureSnapshot() {
+            const video = document.querySelector("#reader video")
             if (!video) return null
-
             const canvas = document.createElement("canvas")
-
-            canvas.width = SNAP_SIZE
-            canvas.height = SNAP_SIZE
-
+            canvas.width = SNAPSHOT_SIZE
+            canvas.height = SNAPSHOT_SIZE
             const ctx = canvas.getContext("2d")
-
             const vw = video.videoWidth
             const vh = video.videoHeight
-
             const s = Math.min(vw, vh)
-
             const sx = (vw - s) / 2
             const sy = (vh - s) / 2
-
-            ctx.drawImage(video, sx, sy, s, s, 0, 0, SNAP_SIZE, SNAP_SIZE)
-
+            ctx.drawImage(video, sx, sy, s, s, 0, 0, SNAPSHOT_SIZE, SNAPSHOT_SIZE)
             return canvas.toDataURL("image/jpeg", 0.9)
-
         }
-
-        /* 扫码 */
-
-        function onScan(text) {
-
-            const now = Date.now()
-
-            if (now - lastScan < SCAN_DEBOUNCE) return
-
-            lastScan = now
-
-            if (!text) return
-
-            if (historyHash[text]) return
-
-            historyHash[text] = 1
-
-            if (scannerPaused) return
-
-            scanner.pause(true)
-            scannerPaused = true
-
-            addRecord(text)
-
-            feedback()
-
-            document.getElementById("reader").classList.add("scan-success")
-
-            setTimeout(() => {
-
-                document.getElementById("reader").classList.remove("scan-success")
-
-                scanner.resume()
-                scannerPaused = false
-
-            }, PAUSE_TIME)
-
-        }
-
-        /* 添加记录 */
-
-        function addRecord(code) {
-
-            const snapshot = captureSnapshot()
-
-            const item = {
-                id: Date.now(),
-                code,
-                snapshot
-            }
-
-            history.unshift(item)
-
-            saveItem(item)
-
-            prependDOM(item)
-
-            updateCount()
-
-        }
-
-        /* DOM */
-
-        function createRow(item, index) {
-
-            const el = document.createElement("div")
-
-            el.className = "bg-white p-3 rounded shadow flex items-center gap-2"
-
-            el.dataset.id = item.id
-
-            el.innerHTML = `
-
-<div class="w-8 text-gray-400">${index + 1}</div>
-
-<div class="flex flex-col">
-<button onclick="moveItem('${item.id}',-1)">⬆</button>
-<button onclick="moveItem('${item.id}',1)">⬇</button>
-</div>
-
-<img src="${item.snapshot}" class="snapshot" onclick="showPreview('${item.snapshot}')">
-
-<div class="flex-1 font-mono truncate">${item.code}</div>
-
-<button onclick="removeItem('${item.id}')" class="text-red-500">删</button>
-
-`
-
-            return el
-
-        }
-
-        function prependDOM(item) {
-
-            renderAll()
-
-        }
-
-        /* 渲染 */
-
-        function renderAll() {
-
-            const list = document.getElementById("list")
-
-            list.innerHTML = ""
-
-            history.forEach((v, i) => {
-
-                list.appendChild(createRow(v, i))
-
-            })
-
-            updateCount()
-
-        }
-
-        /* 删除 */
-
-        function removeItem(id) {
-
-            const item = history.find(v => v.id == id)
-
-            if (!item) return
-
-            history = history.filter(v => v.id != id)
-
-            delete historyHash[item.code]
-
-            deleteItemDB(item.id)
-
-            renderAll()
-
-        }
-
-        /* 排序 */
-
-        function moveItem(id, dir) {
-
-            const i = history.findIndex(v => v.id == id)
-
-            const ni = i - dir
-
-            if (ni < 0 || ni >= history.length) return
-
-            const t = history[i]
-
-            history[i] = history[ni]
-            history[ni] = t
-
-            renderAll()
-
-        }
-
-        /* 预览 */
-
-        function showPreview(src) {
-
-            const p = document.getElementById("preview")
-
-            document.getElementById("previewImg").src = src
-
-            p.classList.remove("hidden")
-
-            p.onclick = () => p.classList.add("hidden")
-
-        }
-
-        /* Torch */
-
-        async function toggleTorch() {
-
-            const track = getTrack()
-
+        function setupPinchZoom() {
+            const track = getCameraTrack()
             if (!track) return
+            const capabilities = track.getCapabilities()
+            if (!capabilities.zoom) return
 
-            const cap = track.getCapabilities()
+            let initDistance = 0
+            let currentZoom = capabilities.zoom.min
+            let minZoom = capabilities.zoom.min
+            let maxZoom = capabilities.zoom.max
 
-            if (!cap.torch) {
+            const container = document.getElementById("reader")
+            container.addEventListener("touchstart", e => {
+                if (e.touches.length === 2) {
+                    initDistance = Math.hypot(
+                        e.touches[0].pageX - e.touches[1].pageX,
+                        e.touches[0].pageY - e.touches[1].pageY)
+                }
+            }, { passive: false })
+            container.addEventListener("touchmove", async e => {
+                if (e.touches.length !== 2) return
+                e.preventDefault()
+                const dist = Math.hypot(
+                    e.touches[0].pageX - e.touches[1].pageX,
+                    e.touches[0].pageY - e.touches[1].pageY)
+                const delta = (dist - initDistance) / 100
+                const nextZoom = Math.max(minZoom, Math.min(currentZoom + delta))
+                await track.applyConstraints({ advanced: [{ zoom: nextZoom }] })
+                currentZoom = nextZoom
+                initDistance = dist
+            }, { passive: false })
+        }
+        async function toggleTorch() {
+            const track = getCameraTrack()
+            if (!track) return
+            const capabilities = track.getCapabilities()
+            if (!capabilities.torch) return
+            const settings = track.getSettings()
+            await track.applyConstraints({ advanced: [{ torch: !settings.torch }] })
+        }
 
-                alert("设备不支持")
-                return
 
+        const { createApp, ref, watch, computed, onMounted, nextTick } = Vue
+        createApp({
+            setup() {
+                const data = ref([])
+                let dataHash = {}
+                const columnNames = ref(["内容"])
+                const showColumns = ref(false)
+                let scanner = null
+                let scanPaused = false
+                let lastScan = 0
+
+                async function startScanner() {
+                    if (scanner) return
+                    document.getElementById("overlay").classList.add("hidden")
+                    scanner = new Html5Qrcode("reader")
+                    await scanner.start({ facingMode: "environment" }, SCANNER_CONFIG, onScanSuccess).then(setupPinchZoom)
+                }
+                function onScanSuccess(text) {
+                    if (!text) return
+                    if (scanPaused) return
+                    if (dataHash[text]) return
+                    const now = Date.now()
+                    if (now - lastScan < SCAN_DEBOUNCE) return
+                    lastScan = now
+                    scanner.pause(true)
+                    scanPaused = true
+                    add(text)
+                    setTimeout(() => {
+                        scanner.resume()
+                        scanPaused = false
+                    }, SCAN_PAUSED_MS)
+                }
+                async function stopScanner() {
+                    if (!scanner || scanner.getState() == 1) return
+                    document.getElementById("overlay").classList.remove("hidden")
+                    await scanner.stop()
+                    await scanner.clear()
+                    scanner = null
+                }
+
+                // 增删排
+                function add(content) {
+                    const snapshot = captureSnapshot()
+                    const item = { id: Date.now(), content, snapshot }
+                    data.value.unshift(item)
+                    dataHash[content] = 1
+                    addDBItem(item)
+                }
+                const remove = (index) => {
+                    id = data.value[index].id
+                    content = data.value[index].content
+                    removeDBItem(id)
+                    delete dataHash[content]
+                    data.value.splice(index, 1)
+                }
+                const clearAll = () => {
+                    if (!confirm("确定清空记录吗？")) return
+                    clearDB()
+                    data.value = []
+                    dataHash = {}
+                }
+                const move = (index, step) => {
+                    const target = index + step
+                    if (target < 0 || target >= data.value.length) return
+                    const temp = data.value[index]
+                    data.value[index] = data.value[target]
+                    data.value[target] = temp
+                }
+                onMounted(async () => {
+                    Sortable.create(document.getElementById("list"), {
+                        handle: ".handle",
+                        animation: 200,
+                        onEnd: (e) => {
+                            const temp = [...data.value]
+                            const item = temp.splice(e.oldIndex, 1)[0]
+                            temp.splice(e.newIndex, 0, item)
+                            data.value = []
+                            nextTick(() => { data.value = temp })
+                        }
+                    })
+
+                    await initDB()
+                    let res = await loadDB()
+                    data.value = res
+                    res.forEach(v => dataHash[v.content] = 1)
+
+                    res = localStorage.getItem(COLUMNS_STORAGE_KEY)
+                    if (res) columnNames.value = JSON.parse(res)
+                })
+
+                function showPreview(src) {
+                    const p = document.getElementById("preview")
+                    document.getElementById("previewImg").src = src
+                    p.classList.remove("hidden")
+                    p.onclick = () => p.classList.add("hidden")
+                }
+
+                watch(columnNames, (newVal) => {
+                    localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify(newVal))
+                }, { deep: true })
+
+                async function exportXLSX() {
+                    if (!data.value.length) return alert("无数据")
+                    const workbook = new ExcelJS.Workbook();
+                    const worksheet = workbook.addWorksheet("扫描记录")
+
+                    const headers = ["序号", ...columnNames.value]
+                    worksheet.columns = headers.map(h => ({ header: h, key: h, width: 15 }));
+                    worksheet.getRow(1).font = { bold: true }
+
+                    const colCount = columnNames.value.length
+                    let rowIndex = 1
+                    for (let i = 0; i < data.value.length; i += colCount) {
+                        const rowChunk = data.value.slice(i, i + colCount)
+                        worksheet.addRow([rowIndex++, ...rowChunk.map(i => i.content)])
+                    }
+
+                    worksheet.columns.forEach((column, colIndex) => {
+                        const isFirstColumn = (colIndex === 0)
+                        let maxColumnLength = 0
+                        column.eachCell({ includeEmpty: true }, (cell) => {
+                            if (isFirstColumn) cell.alignment = { vertical: "middle", horizontal: "center" }
+                            else cell.alignment = { vertical: "middle", horizontal: "left" }
+                            const cellValue = cell.value ? cell.value.toString() : ""
+                            const currentLength = cellValue.split("").reduce((acc, char) => acc + (char.charCodeAt(0) > 255 ? 2 : 1), 0)
+                            if (currentLength > maxColumnLength) maxColumnLength = currentLength
+                        })
+                        column.width = maxColumnLength < 10 ? 10 : maxColumnLength + 2
+                    })
+
+                    const buf = await workbook.xlsx.writeBuffer()
+                    const blob = new Blob([buf])
+                    const a = document.createElement("a")
+                    a.href = URL.createObjectURL(blob)
+                    a.download = `扫描记录_${Date.now()}.xlsx`
+                    a.click()
+                }
+
+                return { data, startScanner, stopScanner, move, remove, clearAll, showPreview, showColumns, columnNames, exportXLSX }
             }
+        }).mount("#app")
 
-            torch = !torch
-
-            await track.applyConstraints({
-                advanced: [{ torch }]
-            })
-
-        }
-
-        /* Excel导出 */
-
-        async function exportXLSX() {
-
-            if (!history.length) return alert("无数据")
-
-            let cols = ["序号"]
-
-            cols = cols.concat(columnNames.length ? columnNames : ["内容"])
-
-            cols.push("快照")
-
-            const wb = new ExcelJS.Workbook()
-            const ws = wb.addWorksheet("scan")
-
-            ws.addRow(cols)
-
-            let r = 2
-
-            history.forEach((item, i) => {
-
-                const row = ws.addRow([i + 1, item.code, ""])
-
-                const img = wb.addImage({
-                    base64: item.snapshot,
-                    extension: "jpeg"
-                })
-
-                ws.addImage(img, {
-                    tl: { col: cols.length - 1, row: r - 1 },
-                    ext: { width: 40, height: 40 }
-                })
-
-                r++
-
-            })
-
-            const buf = await wb.xlsx.writeBuffer()
-
-            const blob = new Blob([buf])
-
-            const a = document.createElement("a")
-
-            a.href = URL.createObjectURL(blob)
-            a.download = "scan_export.xlsx"
-            a.click()
-
-        }
-
-        /* 反馈 */
-
-        function feedback() {
-
-            document.getElementById("beep").play().catch(() => { })
-
-            if (navigator.vibrate) navigator.vibrate(30)
-
-        }
-
-        /* 清空 */
-
-        function clearAll() {
-
-            if (!confirm("确定清空?")) return
-
-            history = []
-            historyHash = {}
-
-            clearDB()
-
-            renderAll()
-
-        }
-
-        /* 列名 */
-
-        function configColumns() {
-
-            const v = prompt("输入列名，用逗号分隔\n例：箱号,SKU,数量", columnNames.join(","))
-
-            if (v === null) return
-
-            columnNames = v.split(",").map(s => s.trim()).filter(Boolean)
-
-            localStorage.setItem("scan_columns_v1", JSON.stringify(columnNames))
-
-        }
-
-        function loadColumns() {
-
-            const c = localStorage.getItem("scan_columns_v1")
-
-            if (c) columnNames = JSON.parse(c)
-
-        }
-
-        /* count */
-
-        function updateCount() {
-
-            document.getElementById("count").innerText = history.length
-
-        }
-
-        /* 初始化 */
-
-        window.onload = async () => {
-
-            await initDB()
-
-            loadColumns()
-
-            await loadDB()
-
-        }
 
     </script>
-
 </body>
 
 </html>
