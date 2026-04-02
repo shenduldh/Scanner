@@ -10,7 +10,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="扫描管理器">
-    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
 
     <script src="./assets/tailwindcss.js"></script>
     <script src="./assets/html5-qrcode.min.js"></script>
@@ -27,6 +27,7 @@
         <header class="bg-white px-4 py-3 shadow flex justify-between items-center">
             <h1 class="text-xl font-black text-blue-600">扫描管理器</h1>
             <div class="flex gap-2">
+                <button onclick="update()" class="bg-white px-3 py-2 rounded border text-sm">更新应用</button>
                 <button onclick="toggleTorch()" class="bg-white px-3 py-2 rounded border text-sm">🔦</button>
                 <button @click="showColumns=true" class="bg-gray-200 px-3 py-2 rounded text-sm">配置列名</button>
                 <button @click="exportXLSX" class="bg-blue-600 text-white px-4 py-2 rounded text-sm">
@@ -395,6 +396,17 @@
     </script>
 
     <script>
+        async function update() {
+            if (!navigator.onLine) return
+            try {
+                if ("caches" in window) {
+                    const cacheNames = await caches.keys()
+                    await Promise.all(cacheNames.map(name => caches.delete(name)))
+                }
+                window.location.reload(true)
+            } catch (error) { }
+        }
+
         if ("serviceWorker" in navigator)
             window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js"))
     </script>
