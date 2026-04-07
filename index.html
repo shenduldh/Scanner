@@ -127,8 +127,7 @@
                             class="disabled:invisible mt-1 pr-1">▼</button>
                     </div>
                     <div class="flex-1 truncate font-medium text-slate-700 text-base">{{ item.content }}</div>
-                    <a :href="item.snapshot" data-pswp-width="2000" data-pswp-height="2000" target="_blank"
-                        rel="noreferrer">
+                    <a :href="item.snapshot" data-pswp-width="2000" data-pswp-height="2000" target="_blank">
                         <img :src="item.snapshot" class="w-10 h-10 object-cover rounded mr-1 cursor-pointer">
                     </a>
                     <button @click="remove(index)" class="text-red-400 ml-2 mr-2">
@@ -186,7 +185,7 @@
         const DB_NAME = "scannerDB"
         const TABLE_NAME = "records"
         const COLUMNS_STORAGE_KEY = "columns"
-        const SNAPSHOT_SIZE = 2048
+        const SNAPSHOT_SIZE = 2000
         const SCAN_DEBOUNCE = 400
         const SCAN_PAUSED_MS = 300
         const REQUIRED_CONFIRMATIONS = 3 // 要求连续扫描到多次相同内容才算识别成功
