@@ -84,7 +84,7 @@
             <h1 onclick="vConsole.show()" class="text-2xl font-black text-indigo-600 font-bold cursor-pointer">扫描喵🐱
             </h1>
             <div class="flex gap-2 ">
-                <button onclick="toggleTorch()" class="bg-gray-200/70 px-3 py-2 rounded text-sm">🔦</button>
+                <button onclick="window.toggleTorch()" class="bg-gray-200/70 px-3 py-2 rounded text-sm">🔦</button>
                 <button @click="showColumns=true" class="bg-gray-200/70 px-3 py-2 rounded text-sm">配置列名</button>
                 <button @click="exportXLSX" class="bg-blue-800/70 text-white px-4 py-2 rounded text-sm">
                     导出（<span id="count">{{data.length}}</span>）
@@ -120,7 +120,7 @@
             <div id="dataList" class="flex-1 overflow-y-auto p-2 space-y-4">
                 <div v-for="(item, index) in data" :key="item.id" class="flex items-center bg-white rounded shadow-sm">
                     <div class="handle cursor-move py-4 mr-2 flex items-center">
-                        <span class="text-orange-200 text-sm px-2">{{index}}</span>
+                        <span class="text-orange-200 text-sm px-2">{{index+1}}</span>
                         <span class="text-slate-300 text-base">☰</span>
                     </div>
                     <div class="flex flex-col text-[10px] text-slate-400 mr-1">
