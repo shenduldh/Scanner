@@ -127,8 +127,10 @@
                             class="disabled:invisible mt-1 pr-1">▼</button>
                     </div>
                     <div class="flex-1 truncate font-medium text-slate-700 text-base">{{ item.content }}</div>
-                    <img :src="item.snapshot" :data-pswp-src="item.snapshot" data-pswp-width="2000"
-                        data-pswp-height="2000" class="pswp-item w-10 h-10 object-cover rounded mr-1 cursor-pointer">
+                    <a :href="item.snapshot" data-pswp-width="2000" data-pswp-height="2000" target="_blank"
+                        rel="noreferrer">
+                        <img :src="item.snapshot" class="w-10 h-10 object-cover rounded mr-1 cursor-pointer">
+                    </a>
                     <button @click="remove(index)" class="text-red-400 ml-2 mr-2">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -397,7 +399,7 @@
                     // 图片预览 
                     const lightbox = new PhotoSwipeLightbox({
                         gallery: "#dataList",
-                        children: ".pswp-item",
+                        children: "a",
                         pswpModule: () => import("./assets/photoswipe.esm.js"),
                     })
                     lightbox.init()
