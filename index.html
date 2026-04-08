@@ -54,12 +54,12 @@
     <link rel="apple-touch-startup-image" href="images/apple-splash-640-1136.png"
         media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)">
 
-    <script src="./assets/tailwindcss.js"></script>
-    <script src="./assets/html5-qrcode.min.js"></script>
-    <script src="./assets/exceljs.min.js"></script>
-    <script src="./assets/vue.global.js"></script>
-    <script src="./assets/Sortable.min.js"></script>
-    <script src="./assets/vconsole.min.js"></script>
+    <script src="./assets/tailwindcss.js" type="text/javascript"></script>
+    <script src="./assets/html5-qrcode.min.js" type="text/javascript"></script>
+    <script src="./assets/exceljs.min.js" type="text/javascript"></script>
+    <script src="./assets/vue.global.js" type="text/javascript"></script>
+    <script src="./assets/Sortable.min.js" type="text/javascript"></script>
+    <script src="./assets/vconsole.min.js" type="text/javascript"></script>
     <link rel="stylesheet" href="./assets/photoswipe.css">
     <script>
         const vConsole = new window.VConsole({
@@ -176,6 +176,7 @@
 
     <script type="module">
         import PhotoSwipeLightbox from "./assets/photoswipe-lightbox.esm.js"
+        import PhotoSwipe from "./assets/photoswipe.esm.js"
 
         const SCANNER_CONFIG = {
             fps: 12,
@@ -331,7 +332,7 @@
                     scanner = new Html5Qrcode("reader")
                     await scanner.start({
                         facingMode: "environment"
-                    }, SCANNER_CONFIG, onScanSuccess).then(setupPinchZoom)
+                    }, SCANNER_CONFIG, onScanSuccess, onScanFailure).then(setupPinchZoom)
                 }
                 // 扫描成功回调函数
                 function onScanSuccess(text) {
@@ -358,6 +359,9 @@
                         scanner.resume()
                         scanPaused = false
                     }, SCAN_PAUSED_MS)
+                }
+                function onScanFailure(error) {
+                    console.warn(`Scan error: ${error}`)
                 }
                 // 停止扫描函数
                 async function stopScanner() {
@@ -406,7 +410,7 @@
                     const lightbox = new PhotoSwipeLightbox({
                         gallery: "#dataList",
                         children: "a",
-                        pswpModule: () => import("./assets/photoswipe.esm.js"),
+                        pswpModule: PhotoSwipe,
                     })
                     lightbox.init()
 
