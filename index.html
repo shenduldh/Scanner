@@ -84,7 +84,7 @@
             <h1 onclick="vConsole.show()" class="text-2xl font-black text-indigo-600 font-bold cursor-pointer">扫描喵🐱
             </h1>
             <div class="flex gap-2 ">
-                <button onclick="window.toggleTorch()" class="bg-gray-200/70 px-3 py-2 rounded text-sm">🔦</button>
+                <button @click="toggleTorch" class="bg-gray-200/70 px-3 py-2 rounded text-sm">🔦</button>
                 <button @click="showColumns=true" class="bg-gray-200/70 px-3 py-2 rounded text-sm">配置列名</button>
                 <button @click="exportXLSX" class="bg-blue-800/70 text-white px-4 py-2 rounded text-sm">
                     导出（<span id="count">{{data.length}}</span>）
@@ -178,7 +178,7 @@
         import PhotoSwipeLightbox from "./assets/photoswipe-lightbox.esm.js"
 
         const SCANNER_CONFIG = {
-            fps: 10,
+            fps: 12,
             qrbox: (w, h) => ({
                 width: w * .75,
                 height: h * .65
@@ -227,77 +227,6 @@
         function clearDB() {
             db.transaction(TABLE_NAME, "readwrite").objectStore(TABLE_NAME).clear()
         }
-        // 扫描相关
-        function getCameraTrack() {
-            const video = document.querySelector("#reader video")
-            if (!video || !video.srcObject) return null
-            return video.srcObject.getVideoTracks()[0]
-        }
-        function captureSnapshot() {
-            const video = document.querySelector("#reader video")
-            if (!video) return null
-            const canvas = document.createElement("canvas")
-            canvas.width = SNAPSHOT_SIZE
-            canvas.height = SNAPSHOT_SIZE
-            const ctx = canvas.getContext("2d")
-            const vw = video.videoWidth
-            const vh = video.videoHeight
-            const s = Math.min(vw, vh)
-            const sx = (vw - s) / 2
-            const sy = (vh - s) / 2
-            ctx.drawImage(video, sx, sy, s, s, 0, 0, SNAPSHOT_SIZE, SNAPSHOT_SIZE)
-            return canvas.toDataURL("image/jpeg", 0.9)
-        }
-        function setupPinchZoom() {
-            const track = getCameraTrack()
-            if (!track) return
-            const capabilities = track.getCapabilities()
-            if (!capabilities.zoom) return
-            let initDistance = 0
-            let currentZoom = capabilities.zoom.min
-            let minZoom = capabilities.zoom.min
-            let maxZoom = capabilities.zoom.max
-            const container = document.getElementById("reader")
-            container.addEventListener("touchstart", e => {
-                if (e.touches.length === 2) {
-                    initDistance = Math.hypot(
-                        e.touches[0].pageX - e.touches[1].pageX,
-                        e.touches[0].pageY - e.touches[1].pageY)
-                }
-            }, {
-                passive: false
-            })
-            container.addEventListener("touchmove", async e => {
-                if (e.touches.length !== 2) return
-                e.preventDefault()
-                const dist = Math.hypot(
-                    e.touches[0].pageX - e.touches[1].pageX,
-                    e.touches[0].pageY - e.touches[1].pageY)
-                const delta = (dist - initDistance) / 100
-                const nextZoom = Math.max(minZoom, Math.min(currentZoom + delta))
-                await track.applyConstraints({
-                    advanced: [{
-                        zoom: nextZoom
-                    }]
-                })
-                currentZoom = nextZoom
-                initDistance = dist
-            }, {
-                passive: false
-            })
-        }
-        async function toggleTorch() {
-            const track = getCameraTrack()
-            if (!track) return
-            const capabilities = track.getCapabilities()
-            if (!capabilities.torch) return
-            const settings = track.getSettings()
-            await track.applyConstraints({
-                advanced: [{
-                    torch: !settings.torch
-                }]
-            })
-        }
 
         const {
             createApp,
@@ -320,6 +249,81 @@
                 let lastScanTime = 0
                 let lastDecodedText = null
                 let continualScanCount = 0
+
+                // 获取当前扫描的视频
+                function getCameraTrack() {
+                    const video = document.querySelector("#reader video")
+                    if (!video || !video.srcObject) return null
+                    return video.srcObject.getVideoTracks()[0]
+                }
+                // 快照
+                function captureSnapshot() {
+                    const video = document.querySelector("#reader video")
+                    if (!video) return null
+                    const canvas = document.createElement("canvas")
+                    canvas.width = SNAPSHOT_SIZE
+                    canvas.height = SNAPSHOT_SIZE
+                    const ctx = canvas.getContext("2d")
+                    const vw = video.videoWidth
+                    const vh = video.videoHeight
+                    const s = Math.min(vw, vh)
+                    const sx = (vw - s) / 2
+                    const sy = (vh - s) / 2
+                    ctx.drawImage(video, sx, sy, s, s, 0, 0, SNAPSHOT_SIZE, SNAPSHOT_SIZE)
+                    return canvas.toDataURL("image/jpeg", 1.0)
+                }
+                // 设置缩放
+                function setupPinchZoom() {
+                    const track = getCameraTrack()
+                    if (!track) return
+                    const capabilities = track.getCapabilities()
+                    if (!capabilities.zoom) return
+                    let initDistance = 0
+                    let currentZoom = capabilities.zoom.min
+                    let minZoom = capabilities.zoom.min
+                    let maxZoom = capabilities.zoom.max
+                    const container = document.getElementById("reader")
+                    container.addEventListener("touchstart", e => {
+                        if (e.touches.length === 2) {
+                            initDistance = Math.hypot(
+                                e.touches[0].pageX - e.touches[1].pageX,
+                                e.touches[0].pageY - e.touches[1].pageY)
+                        }
+                    }, {
+                        passive: false
+                    })
+                    container.addEventListener("touchmove", async e => {
+                        if (e.touches.length !== 2) return
+                        e.preventDefault()
+                        const dist = Math.hypot(
+                            e.touches[0].pageX - e.touches[1].pageX,
+                            e.touches[0].pageY - e.touches[1].pageY)
+                        const delta = (dist - initDistance) / 100
+                        const nextZoom = Math.max(minZoom, Math.min(currentZoom + delta))
+                        await track.applyConstraints({
+                            advanced: [{
+                                zoom: nextZoom
+                            }]
+                        })
+                        currentZoom = nextZoom
+                        initDistance = dist
+                    }, {
+                        passive: false
+                    })
+                }
+                // 闪光灯
+                async function toggleTorch() {
+                    const track = getCameraTrack()
+                    if (!track) return
+                    const capabilities = track.getCapabilities()
+                    if (!capabilities.torch) return
+                    const settings = track.getSettings()
+                    await track.applyConstraints({
+                        advanced: [{
+                            torch: !settings.torch
+                        }]
+                    })
+                }
                 // 启动扫描函数
                 async function startScanner() {
                     if (scanner) return
@@ -437,6 +441,7 @@
                 watch(fullscreen, async newVal => {
                     if (newVal) await stopScanner()
                 })
+
                 // 持久化列名
                 watch(columns, (newVal) => {
                     localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify(newVal))
@@ -465,6 +470,7 @@
                         })
                     } else document.body.style.overflow = ""
                 })
+
                 // 导出 xlsx
                 async function exportXLSX() {
                     if (!data.value.length) return alert("无数据")
@@ -508,10 +514,12 @@
                     a.download = `扫描记录_${Date.now()}.xlsx`
                     a.click()
                 }
+
                 return {
                     data,
                     startScanner,
                     stopScanner,
+                    toggleTorch,
                     move,
                     remove,
                     clearAll,
