@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>全适配物理消除 - Canvas渲染版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #0f172a;
+            touch-action: none;
+            user-select: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app" class="relative w-full h-screen overflow-hidden">
+        <div class="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,#1e293b,#0f172a)] z-0"></div>
+
+        <canvas 
+            ref="gameCanvas" 
+            class="absolute top-0 left-0 w-full h-full z-10"
+            @mousedown="onCanvasClick" 
+            @touchstart.prevent="onCanvasClick">
+        </canvas>
+
+        <div class="absolute top-6 left-6 right-6 flex justify-between items-start z-30 pointer-events-none">
+            <div class="bg-black/40 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 shadow-lg">
+                <p class="text-xs text-indigo-300 uppercase tracking-wider font-bold">Remaining</p>
+                <p class="text-2xl font-black text-white">{{ renderFruits.length }}</p>
+            </div>
+            <div class="bg-black/40 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 shadow-lg text-right">
+                <p class="text-xs text-indigo-300 uppercase tracking-wider font-bold">Pipe Load</p>
+                <p class="text-2xl font-black"
+                    :class="pipeCount >= (MAX_PIPE_CAPACITY - 1) ? 'text-red-400' : 'text-green-400'">
+                    {{ pipeCount }} <span class="text-sm text-gray-400">/ {{ MAX_PIPE_CAPACITY }}</span>
+                </p>
+            </div>
+        </div>
+
+        <div v-if="state !== 'playing'"
+            class="absolute inset-0 bg-slate-950/80 backdrop-blur-xl z-50 flex items-center justify-center p-6">
+            <div class="bg-white rounded-3xl p-8 w-full max-w-sm text-center shadow-2xl">
+                <div class="text-7xl mb-4">{{ state === 'win' ? '🌟' : '🌪️' }}</div>
+                <h2 class="text-3xl font-black text-slate-900 mb-2">{{ state === 'win' ? '完美清屏' : '管道堵塞' }}</h2>
+                <p class="text-slate-500 mb-8">水果在管道内堆叠超过 {{ MAX_PIPE_CAPACITY }} 个即溢出</p>
+                <button @click="restart"
+                    class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold text-xl shadow-indigo-200 shadow-lg active:scale-95 transition-transform">
+                    重新开始
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { createApp, ref, onMounted, onUnmounted } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.js';
+        import RAPIER from 'https://cdn.skypack.dev/@dimforge/rapier2d-compat';
+
+        createApp({
+            setup() {
+                // ==========================================
+                // 游戏常量配置 (Constants)
+                // ==========================================
+                const GRAVITY = { x: 0, y: 1600 };
+                const WORLD_HEIGHT = 4000;
+                
+                const PIPE_WIDTH = 65;
+                const PIPE_HEIGHT = 180;
+                const SLOPE_ANGLE = 0.4;
+                const WALL_THICKNESS = 20;
+
+                const MAX_PIPE_CAPACITY = 8;
+                const TOTAL_FRUITS = 50;
+                const ELIMINATION_X_RANGE = 65;
+                const CAMERA_LERP_FACTOR = 0.08;
+                const SPAWN_MARGIN_X = 100;
+                const SPAWN_MARGIN_Y = 300;
+
+                const FRUIT_TYPES = [
+                    { emoji: '🍎', r: 26 }, { emoji: '🍊', r: 24 }, { emoji: '🍇', r: 22 },
+                    { emoji: '🍉', r: 28 }, { emoji: '🍓', r: 22 }, { emoji: '🥝', r: 23 }
+                ];
+
+                // ==========================================
+                // 响应式变量 & 内部状态
+                // ==========================================
+                const gameCanvas = ref(null);
+                const renderFruits = ref([]);
+                const funnelWalls = ref([]);
+                const scrollY = ref(0);
+                const pipeCount = ref(0);
+                const state = ref('playing');
+
+                let world, eventQueue, animationId, ctx;
+                let fruitMap = new Map();
+                let colliderMap = new Map();
+                let structureBodies = [];
+                let removeQueue = new Set();
+                let canvasEffects = []; // 替换原本的响应式 effects
+
+                // 初始化
+                const init = async () => {
+                    await RAPIER.init();
+                    world = new RAPIER.World(GRAVITY);
+                    eventQueue = new RAPIER.EventQueue(true);
+
+                    // 初始化 Canvas
+                    const canvas = gameCanvas.value;
+                    ctx = canvas.getContext('2d');
+                    resizeCanvas();
+                    window.addEventListener('resize', resizeCanvas);
+
+                    const winW = window.innerWidth;
+
+                    // 创建左右边界
+                    const leftBorder = world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(-25, WORLD_HEIGHT / 2))
+                    world.createCollider(RAPIER.ColliderDesc.cuboid(25, WORLD_HEIGHT), leftBorder)
+                    const rightBorder = world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(winW + 25, WORLD_HEIGHT / 2))
+                    world.createCollider(RAPIER.ColliderDesc.cuboid(25, WORLD_HEIGHT), rightBorder)
+
+                    // 预创建底部边界
+                    for (let i = 0; i < 5; i++) {
+                        let b = world.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased())
+                        world.createCollider(RAPIER.ColliderDesc.cuboid(10, 10), b)
+                        structureBodies.push(b)
+                    }
+
+                    // 初始化生成静态水果阵列
+                    for (let i = 0; i < TOTAL_FRUITS; i++) {
+                        const conf = FRUIT_TYPES[i % FRUIT_TYPES.length];
+                        const x = 50 + Math.random() * (winW - SPAWN_MARGIN_X);
+                        const y = SPAWN_MARGIN_Y + (i * (WORLD_HEIGHT - SPAWN_MARGIN_Y * 2) / TOTAL_FRUITS);
+
+                        const body = world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(x, y));
+                        const col = world.createCollider(RAPIER.ColliderDesc.ball(conf.r).setActiveEvents(RAPIER.ActiveEvents.COLLISION_EVENTS), body);
+
+                        fruitMap.set(body.handle, {
+                            id: body.handle, body, emoji: conf.emoji,
+                            w: conf.r * 2, h: conf.r * 2, r: conf.r, x, y, angle: 0, isStatic: true
+                        });
+                        colliderMap.set(col.handle, body.handle);
+                    }
+
+                    loop();
+                };
+
+                const resizeCanvas = () => {
+                    if (gameCanvas.value) {
+                        gameCanvas.value.width = window.innerWidth;
+                        gameCanvas.value.height = window.innerHeight;
+                    }
+                };
+
+                const updateStructure = () => {
+                    const winW = window.innerWidth;
+                    const winH = window.innerHeight;
+                    const centerX = winW / 2;
+                    const bottomY = scrollY.value + winH;
+                    const pipeTopY = bottomY - PIPE_HEIGHT;
+
+                    const horizontalSpan = (winW / 2) - (PIPE_WIDTH / 2);
+                    const slopeLen = (horizontalSpan / Math.cos(SLOPE_ANGLE)) + 100;
+
+                    const slpLX = centerX - (PIPE_WIDTH / 2) - (Math.cos(SLOPE_ANGLE) * slopeLen / 2);
+                    const slpLY = pipeTopY - (Math.sin(SLOPE_ANGLE) * slopeLen / 2);
+                    const slpRX = centerX + (PIPE_WIDTH / 2) + (Math.cos(SLOPE_ANGLE) * slopeLen / 2);
+                    const slpRY = pipeTopY - (Math.sin(SLOPE_ANGLE) * slopeLen / 2);
+
+                    const configs = [
+                        { x: slpLX, y: slpLY, w: slopeLen, h: WALL_THICKNESS, a: SLOPE_ANGLE },
+                        { x: slpRX, y: slpRY, w: slopeLen, h: WALL_THICKNESS, a: -SLOPE_ANGLE },
+                        { x: centerX - PIPE_WIDTH / 2 - WALL_THICKNESS / 2, y: bottomY - PIPE_HEIGHT / 2, w: WALL_THICKNESS, h: PIPE_HEIGHT, a: 0 },
+                        { x: centerX + PIPE_WIDTH / 2 + WALL_THICKNESS / 2, y: bottomY - PIPE_HEIGHT / 2, w: WALL_THICKNESS, h: PIPE_HEIGHT, a: 0 },
+                        { x: centerX, y: bottomY - WALL_THICKNESS / 2, w: PIPE_WIDTH + WALL_THICKNESS * 2, h: WALL_THICKNESS, a: 0 }
+                    ];
+
+                    funnelWalls.value = configs.map((c, i) => {
+                        const b = structureBodies[i]
+                        b.setNextKinematicTranslation({ x: c.x, y: c.y })
+                        b.setNextKinematicRotation(c.a)
+                        b.collider(0).setHalfExtents({ x: c.w / 2, y: c.h / 2 })
+                        return { x: c.x, y: c.y, width: c.w, height: c.h, angle: c.a }
+                    });
+                };
+
+                const renderCanvas = () => {
+                    if (!ctx || !gameCanvas.value) return;
+                    const w = gameCanvas.value.width;
+                    const h = gameCanvas.value.height;
+
+                    ctx.clearRect(0, 0, w, h);
+                    ctx.save();
+                    
+                    // 根据 scrollY 偏移整个世界
+                    ctx.translate(0, -scrollY.value);
+
+                    // 1. 绘制漏斗结构
+                    funnelWalls.value.forEach(wall => {
+                        ctx.save();
+                        ctx.translate(wall.x, wall.y);
+                        ctx.rotate(wall.angle);
+                        
+                        ctx.fillStyle = 'rgba(99, 102, 241, 0.2)'; // 对应 bg-indigo-500/20
+                        ctx.strokeStyle = 'rgba(129, 140, 248, 0.5)'; // 对应 border-indigo-400/50
+                        ctx.lineWidth = 2;
+                        
+                        ctx.beginPath();
+                        // 兼容性好的圆角矩形绘制方案
+                        if(ctx.roundRect) {
+                            ctx.roundRect(-wall.width/2, -wall.height/2, wall.width, wall.height, 4);
+                        } else {
+                            ctx.rect(-wall.width/2, -wall.height/2, wall.width, wall.height);
+                        }
+                        ctx.fill();
+                        ctx.stroke();
+                        ctx.restore();
+                    });
+
+                    // 2. 绘制水果
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    
+                    const time = Date.now();
+                    const pulseAlpha = 0.05 + Math.abs(Math.sin(time / 300)) * 0.1;
+
+                    fruitMap.forEach(f => {
+                        ctx.save();
+                        ctx.translate(f.x, f.y);
+                        ctx.rotate(f.angle);
+                        
+                        // 绘制 Emoji
+                        ctx.font = `${f.r * 1.8}px Arial`;
+                        ctx.fillText(f.emoji, 0, 0);
+
+                        // 如果是静态水果，绘制呼吸光环
+                        if (f.isStatic) {
+                            ctx.beginPath();
+                            ctx.arc(0, 0, f.r * 1.3, 0, Math.PI * 2);
+                            ctx.fillStyle = `rgba(255, 255, 255, ${pulseAlpha})`;
+                            ctx.fill();
+                        }
+                        ctx.restore();
+                    });
+
+                    // 3. 绘制消除动画特效
+                    canvasEffects = canvasEffects.filter(eff => {
+                        const progress = (time - eff.startTime) / 400; // 动画时长 400ms
+                        if (progress >= 1) return false;
+
+                        ctx.save();
+                        ctx.translate(eff.x, eff.y);
+                        
+                        // 缩放放大并渐变透明
+                        const scale = 1 + progress * 0.8;
+                        ctx.scale(scale, scale);
+                        ctx.globalAlpha = 1 - progress;
+                        
+                        ctx.font = `48px Arial`; // 对应原本的 text-5xl
+                        // 如果需要加亮效果
+                        ctx.filter = `brightness(1.5)`;
+                        ctx.fillText(eff.emoji, 0, 0);
+                        
+                        ctx.restore();
+                        return true;
+                    });
+
+                    ctx.restore();
+                };
+
+                const loop = () => {
+                    if (state.value !== 'playing') return;
+
+                    updateStructure();
+                    world.step(eventQueue);
+
+                    // 处理碰撞消除检测
+                    eventQueue.drainCollisionEvents((h1, h2, started) => {
+                        if (!started) return;
+                        const f1 = fruitMap.get(colliderMap.get(h1));
+                        const f2 = fruitMap.get(colliderMap.get(h2));
+
+                        if (f1 && f2 && !f1.isStatic && !f2.isStatic && f1.emoji === f2.emoji) {
+                            if (Math.abs(f1.x - window.innerWidth / 2) < ELIMINATION_X_RANGE) {
+                                removeQueue.add(f1.id);
+                                removeQueue.add(f2.id);
+                            }
+                        }
+                    });
+
+                    const currentFruits = [];
+                    let maxY = 0;
+                    let countInPipe = 0;
+                    const winW = window.innerWidth;
+
+                    // 执行消除队列并添加特效
+                    removeQueue.forEach(id => {
+                        const f = fruitMap.get(id);
+                        if (f) {
+                            canvasEffects.push({ 
+                                x: f.x, y: f.y, emoji: f.emoji, startTime: Date.now() 
+                            });
+                            world.removeRigidBody(f.body);
+                            fruitMap.delete(id);
+                        }
+                    });
+                    removeQueue.clear();
+
+                    // 更新所有水果位置
+                    fruitMap.forEach(f => {
+                        const p = f.body.translation();
+                        f.x = p.x; f.y = p.y;
+                        f.angle = f.body.rotation();
+                        f.isStatic = f.body.bodyType() === 1;
+                        currentFruits.push(f);
+
+                        if (f.isStatic && f.y > maxY) maxY = f.y;
+
+                        if (!f.isStatic && Math.abs(f.x - winW / 2) < PIPE_WIDTH / 2) {
+                            countInPipe++;
+                        }
+                    });
+
+                    renderFruits.value = currentFruits;
+                    pipeCount.value = countInPipe;
+
+                    // 执行 Canvas 渲染
+                    renderCanvas();
+
+                    // 胜负判定
+                    if (countInPipe >= MAX_PIPE_CAPACITY) state.value = 'over';
+                    if (currentFruits.length === 0) state.value = 'win';
+
+                    // 镜头跟随最高的水果块
+                    const targetScroll = Math.max(0, Math.min(maxY - 500, WORLD_HEIGHT - window.innerHeight));
+                    scrollY.value += (targetScroll - scrollY.value) * CAMERA_LERP_FACTOR;
+
+                    animationId = requestAnimationFrame(loop);
+                };
+
+                const triggerFall = (id) => {
+                    const f = fruitMap.get(id);
+                    if (f && f.isStatic) {
+                        f.body.setBodyType(0, true);
+                        f.body.applyImpulse({ x: (Math.random() - 0.5) * 20, y: 10 }, true);
+                    }
+                };
+
+                // 处理 Canvas 交互事件
+                const onCanvasClick = (e) => {
+                    if (state.value !== 'playing') return;
+                    
+                    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                    
+                    // 将屏幕坐标转换为世界坐标（加上滚动偏移量）
+                    const worldX = clientX;
+                    const worldY = clientY + scrollY.value;
+
+                    // 遍历寻找点击的水果 (从上层往下层检测，简易处理为遍历 map)
+                    for (const [id, f] of fruitMap.entries()) {
+                        if (f.isStatic) {
+                            const dx = worldX - f.x;
+                            const dy = worldY - f.y;
+                            // 检测点击点是否在水果半径内
+                            if (dx * dx + dy * dy <= f.r * f.r) {
+                                triggerFall(id);
+                                break; // 每次点击只掉落一个
+                            }
+                        }
+                    }
+                };
+
+                const restart = () => location.reload();
+
+                onMounted(init);
+                onUnmounted(() => {
+                    window.removeEventListener('resize', resizeCanvas);
+                    cancelAnimationFrame(animationId);
+                });
+
+                return {
+                    gameCanvas, renderFruits, scrollY, pipeCount, state,
+                    onCanvasClick, restart, MAX_PIPE_CAPACITY
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+
+</html>
